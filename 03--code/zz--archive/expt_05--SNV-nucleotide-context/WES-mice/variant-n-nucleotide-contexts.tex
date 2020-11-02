@@ -1,0 +1,1643 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Nucleotide Contexts of POLE-mutant Tumor Variants},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Nucleotide Contexts of POLE-mutant Tumor Variants}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{}
+    \preauthor{}\postauthor{}
+    \date{}
+    \predate{}\postdate{}
+  
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\begin{verbatim}
+<!-- toc_float: yes -->
+\end{verbatim}
+
+\hypertarget{setup}{%
+\section{Setup}\label{setup}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Load packages}
+\KeywordTok{library}\NormalTok{(tidyverse)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## -- Attaching packages -------------------
+\end{verbatim}
+
+\begin{verbatim}
+## v ggplot2 3.2.1     v purrr   0.3.2
+## v tibble  2.1.3     v dplyr   0.8.3
+## v tidyr   1.0.0     v stringr 1.4.0
+## v readr   1.3.1     v forcats 0.4.0
+\end{verbatim}
+
+\begin{verbatim}
+## -- Conflicts --- tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(knitr)}
+\KeywordTok{library}\NormalTok{(vcfR)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##    *****       ***   vcfR   ***       *****
+##    This is vcfR 1.8.0 
+##      browseVignettes('vcfR') # Documentation
+##      citation('vcfR') # Citation
+##    *****       *****      *****       *****
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(BSgenome)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Loading required package: BiocGenerics
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: parallel
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'BiocGenerics'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:parallel':
+## 
+##     clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+##     clusterExport, clusterMap, parApply, parCapply, parLapply,
+##     parLapplyLB, parRapply, parSapply, parSapplyLB
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:dplyr':
+## 
+##     combine, intersect, setdiff, union
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:stats':
+## 
+##     IQR, mad, sd, var, xtabs
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:base':
+## 
+##     anyDuplicated, append, as.data.frame, basename, cbind,
+##     colnames, dirname, do.call, duplicated, eval, evalq, Filter,
+##     Find, get, grep, grepl, intersect, is.unsorted, lapply, Map,
+##     mapply, match, mget, order, paste, pmax, pmax.int, pmin,
+##     pmin.int, Position, rank, rbind, Reduce, rownames, sapply,
+##     setdiff, sort, table, tapply, union, unique, unsplit, which,
+##     which.max, which.min
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: S4Vectors
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: package 'S4Vectors' was built under R version 3.6.1
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: stats4
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'S4Vectors'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:dplyr':
+## 
+##     first, rename
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:tidyr':
+## 
+##     expand
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:base':
+## 
+##     expand.grid
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: IRanges
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: package 'IRanges' was built under R version 3.6.1
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'IRanges'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:dplyr':
+## 
+##     collapse, desc, slice
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:purrr':
+## 
+##     reduce
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: GenomeInfoDb
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: GenomicRanges
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: package 'GenomicRanges' was built under R version 3.6.1
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: Biostrings
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: XVector
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'XVector'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:purrr':
+## 
+##     compact
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'Biostrings'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:base':
+## 
+##     strsplit
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: rtracklayer
+\end{verbatim}
+
+\begin{verbatim}
+## Warning: package 'rtracklayer' was built under R version 3.6.1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(BSgenome.Mmusculus.UCSC.mm10)}
+
+\CommentTok{# Set working directory}
+\NormalTok{opts_knit}\OperatorTok{$}\KeywordTok{set}\NormalTok{(}\DataTypeTok{root.dir =}\NormalTok{ rprojroot}\OperatorTok{::}\KeywordTok{find_rstudio_root_file}\NormalTok{())}
+\KeywordTok{getwd}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{load-vcf-data}{%
+\section{Load VCF data}\label{load-vcf-data}}
+
+\hypertarget{load-process-vcf}{%
+\subsection{Load \& process VCF}\label{load-process-vcf}}
+
+Load VCFs as a vcfR objects
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m079 =}\StringTok{ }\KeywordTok{read.vcfR}\NormalTok{(}\DataTypeTok{file =}\NormalTok{ params}\OperatorTok{$}\NormalTok{vcf_m079)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 24
+##   header_line: 25
+##   variant count: 4875
+##   column count: 11
+## 
+Meta line 24 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 4875
+##   Character matrix gt cols: 11
+##   skip: 0
+##   nrows: 4875
+##   row_num: 0
+## 
+Processed variant 1000
+Processed variant 2000
+Processed variant 3000
+Processed variant 4000
+Processed variant: 4875
+## All variants processed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m079}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## ***** Object of Class vcfR *****
+## 2 samples
+## 29 CHROMs
+## 4,875 variants
+## Object size: 2.7 Mb
+## 0 percent missing data
+## *****        *****         *****
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m084 =}\StringTok{ }\KeywordTok{read.vcfR}\NormalTok{(}\DataTypeTok{file =}\NormalTok{ params}\OperatorTok{$}\NormalTok{vcf_m084)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 24
+##   header_line: 25
+##   variant count: 6784
+##   column count: 11
+## 
+Meta line 24 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 6784
+##   Character matrix gt cols: 11
+##   skip: 0
+##   nrows: 6784
+##   row_num: 0
+## 
+Processed variant 1000
+Processed variant 2000
+Processed variant 3000
+Processed variant 4000
+Processed variant 5000
+Processed variant 6000
+Processed variant: 6784
+## All variants processed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m084}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## ***** Object of Class vcfR *****
+## 2 samples
+## 33 CHROMs
+## 6,784 variants
+## Object size: 3.7 Mb
+## 0 percent missing data
+## *****        *****         *****
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m122 =}\StringTok{ }\KeywordTok{read.vcfR}\NormalTok{(}\DataTypeTok{file =}\NormalTok{ params}\OperatorTok{$}\NormalTok{vcf_m122)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 24
+##   header_line: 25
+##   variant count: 11424
+##   column count: 11
+## 
+Meta line 24 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 11424
+##   Character matrix gt cols: 11
+##   skip: 0
+##   nrows: 11424
+##   row_num: 0
+## 
+Processed variant 1000
+Processed variant 2000
+Processed variant 3000
+Processed variant 4000
+Processed variant 5000
+Processed variant 6000
+Processed variant 7000
+Processed variant 8000
+Processed variant 9000
+Processed variant 10000
+Processed variant 11000
+Processed variant: 11424
+## All variants processed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m122}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## ***** Object of Class vcfR *****
+## 2 samples
+## 36 CHROMs
+## 11,424 variants
+## Object size: 6.1 Mb
+## 0 percent missing data
+## *****        *****         *****
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m124 =}\StringTok{ }\KeywordTok{read.vcfR}\NormalTok{(}\DataTypeTok{file =}\NormalTok{ params}\OperatorTok{$}\NormalTok{vcf_m124)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 24
+##   header_line: 25
+##   variant count: 2249
+##   column count: 11
+## 
+Meta line 24 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 2249
+##   Character matrix gt cols: 11
+##   skip: 0
+##   nrows: 2249
+##   row_num: 0
+## 
+Processed variant 1000
+Processed variant 2000
+Processed variant: 2249
+## All variants processed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m124}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## ***** Object of Class vcfR *****
+## 2 samples
+## 33 CHROMs
+## 2,249 variants
+## Object size: 1.3 Mb
+## 0 percent missing data
+## *****        *****         *****
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m1098 =}\StringTok{ }\KeywordTok{read.vcfR}\NormalTok{(}\DataTypeTok{file =}\NormalTok{ params}\OperatorTok{$}\NormalTok{vcf_m1098)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Scanning file to determine attributes.
+## File attributes:
+##   meta lines: 24
+##   header_line: 25
+##   variant count: 2841
+##   column count: 11
+## 
+Meta line 24 read in.
+## All meta lines processed.
+## gt matrix initialized.
+## Character matrix gt created.
+##   Character matrix gt rows: 2841
+##   Character matrix gt cols: 11
+##   skip: 0
+##   nrows: 2841
+##   row_num: 0
+## 
+Processed variant 1000
+Processed variant 2000
+Processed variant: 2841
+## All variants processed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m1098}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## ***** Object of Class vcfR *****
+## 2 samples
+## 31 CHROMs
+## 2,841 variants
+## Object size: 1.6 Mb
+## 0 percent missing data
+## *****        *****         *****
+\end{verbatim}
+
+\hypertarget{convert-vcfr-objects-into-tidy-data}{%
+\subsection{Convert vcfR objects into tidy
+data}\label{convert-vcfr-objects-into-tidy-data}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m079_tidy =}\StringTok{ }\KeywordTok{vcfR2tidy}\NormalTok{(vcf_m079)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Extracting gt element GT
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element GQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element RD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element AD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element FREQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m079_tidy}\OperatorTok{$}\NormalTok{fix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 4,875 x 21
+##    ChromKey CHROM    POS ID    REF   ALT    QUAL FILTER    DP SOMATIC SS   
+##       <int> <chr>  <int> <chr> <chr> <chr> <dbl> <chr>  <int> <lgl>   <chr>
+##  1        6 chr10 3.95e6 <NA>  A     G        NA PASS      65 TRUE    2    
+##  2        6 chr10 3.95e6 <NA>  T     G        NA PASS      86 TRUE    2    
+##  3        6 chr10 3.95e6 <NA>  T     G        NA PASS      75 TRUE    2    
+##  4        6 chr10 3.96e6 <NA>  C     T        NA PASS     218 TRUE    2    
+##  5        6 chr10 5.34e6 <NA>  A     G        NA PASS      88 TRUE    2    
+##  6        6 chr10 5.79e6 <NA>  T     G        NA PASS     166 TRUE    2    
+##  7        6 chr10 5.79e6 <NA>  T     C        NA PASS      47 TRUE    2    
+##  8        6 chr10 7.70e6 <NA>  C     T        NA PASS     223 TRUE    2    
+##  9        6 chr10 8.25e6 <NA>  A     C        NA PASS     143 TRUE    2    
+## 10        6 chr10 9.68e6 <NA>  G     A        NA PASS      60 TRUE    2    
+## # ... with 4,865 more rows, and 10 more variables: SSC <chr>, GPV <dbl>,
+## #   SPV <dbl>, ANNOVAR_DATE <chr>, Func.refGene <chr>, Gene.refGene <chr>,
+## #   GeneDetail.refGene <chr>, ExonicFunc.refGene <chr>,
+## #   AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m084_tidy =}\StringTok{ }\KeywordTok{vcfR2tidy}\NormalTok{(vcf_m084)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Extracting gt element GT
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element GQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element RD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element AD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element FREQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m084_tidy}\OperatorTok{$}\NormalTok{fix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 6,784 x 21
+##    ChromKey CHROM    POS ID    REF   ALT    QUAL FILTER    DP SOMATIC SS   
+##       <int> <chr>  <int> <chr> <chr> <chr> <dbl> <chr>  <int> <lgl>   <chr>
+##  1        6 chr10 3.14e6 <NA>  T     G        NA PASS     136 TRUE    2    
+##  2        6 chr10 4.44e6 <NA>  C     T        NA PASS      68 TRUE    2    
+##  3        6 chr10 4.45e6 <NA>  A     C        NA PASS      70 TRUE    2    
+##  4        6 chr10 4.86e6 <NA>  T     C        NA PASS     209 TRUE    2    
+##  5        6 chr10 5.23e6 <NA>  G     A        NA PASS     207 TRUE    2    
+##  6        6 chr10 5.23e6 <NA>  C     T        NA PASS     158 TRUE    2    
+##  7        6 chr10 5.33e6 <NA>  A     C        NA PASS      56 TRUE    2    
+##  8        6 chr10 5.37e6 <NA>  T     G        NA PASS      67 TRUE    2    
+##  9        6 chr10 6.79e6 <NA>  C     T        NA PASS     181 TRUE    2    
+## 10        6 chr10 7.49e6 <NA>  T     G        NA PASS     239 TRUE    2    
+## # ... with 6,774 more rows, and 10 more variables: SSC <chr>, GPV <dbl>,
+## #   SPV <dbl>, ANNOVAR_DATE <chr>, Func.refGene <chr>, Gene.refGene <chr>,
+## #   GeneDetail.refGene <chr>, ExonicFunc.refGene <chr>,
+## #   AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m122_tidy =}\StringTok{ }\KeywordTok{vcfR2tidy}\NormalTok{(vcf_m122)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Extracting gt element GT
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element GQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element RD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element AD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element FREQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m122_tidy}\OperatorTok{$}\NormalTok{fix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 11,424 x 21
+##    ChromKey CHROM    POS ID    REF   ALT    QUAL FILTER    DP SOMATIC SS   
+##       <int> <chr>  <int> <chr> <chr> <chr> <dbl> <chr>  <int> <lgl>   <chr>
+##  1        6 chr10 3.17e6 <NA>  A     G        NA PASS      56 TRUE    2    
+##  2        6 chr10 3.27e6 <NA>  G     A        NA PASS     300 TRUE    2    
+##  3        6 chr10 3.43e6 <NA>  A     C        NA PASS     102 TRUE    2    
+##  4        6 chr10 3.93e6 <NA>  T     C        NA PASS     243 TRUE    2    
+##  5        6 chr10 3.95e6 <NA>  A     G        NA PASS      79 TRUE    2    
+##  6        6 chr10 4.02e6 <NA>  C     T        NA PASS     158 TRUE    2    
+##  7        6 chr10 4.02e6 <NA>  T     C        NA PASS     362 TRUE    2    
+##  8        6 chr10 4.05e6 <NA>  C     T        NA PASS     279 TRUE    2    
+##  9        6 chr10 4.35e6 <NA>  C     T        NA PASS     218 TRUE    2    
+## 10        6 chr10 4.36e6 <NA>  T     G        NA PASS     263 TRUE    2    
+## # ... with 11,414 more rows, and 10 more variables: SSC <chr>, GPV <dbl>,
+## #   SPV <dbl>, ANNOVAR_DATE <chr>, Func.refGene <chr>, Gene.refGene <chr>,
+## #   GeneDetail.refGene <chr>, ExonicFunc.refGene <chr>,
+## #   AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m124_tidy =}\StringTok{ }\KeywordTok{vcfR2tidy}\NormalTok{(vcf_m124)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Extracting gt element GT
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element GQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element RD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element AD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element FREQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m124_tidy}\OperatorTok{$}\NormalTok{fix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 2,249 x 21
+##    ChromKey CHROM    POS ID    REF   ALT    QUAL FILTER    DP SOMATIC SS   
+##       <int> <chr>  <int> <chr> <chr> <chr> <dbl> <chr>  <int> <lgl>   <chr>
+##  1        5 chr10 6.94e6 <NA>  T     G        NA PASS     211 TRUE    2    
+##  2        5 chr10 9.87e6 <NA>  C     T        NA PASS     100 TRUE    2    
+##  3        5 chr10 1.12e7 <NA>  T     G        NA PASS     257 TRUE    2    
+##  4        5 chr10 1.12e7 <NA>  A     C        NA PASS      65 TRUE    2    
+##  5        5 chr10 1.71e7 <NA>  T     C        NA PASS     133 TRUE    2    
+##  6        5 chr10 1.86e7 <NA>  T     G        NA PASS      79 TRUE    2    
+##  7        5 chr10 2.01e7 <NA>  C     T        NA PASS     347 TRUE    2    
+##  8        5 chr10 2.39e7 <NA>  A     G        NA PASS     307 TRUE    2    
+##  9        5 chr10 2.40e7 <NA>  T     C        NA PASS     449 TRUE    2    
+## 10        5 chr10 2.43e7 <NA>  T     C        NA PASS     369 TRUE    2    
+## # ... with 2,239 more rows, and 10 more variables: SSC <chr>, GPV <dbl>,
+## #   SPV <dbl>, ANNOVAR_DATE <chr>, Func.refGene <chr>, Gene.refGene <chr>,
+## #   GeneDetail.refGene <chr>, ExonicFunc.refGene <chr>,
+## #   AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m1098_tidy =}\StringTok{ }\KeywordTok{vcfR2tidy}\NormalTok{(vcf_m1098)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Extracting gt element GT
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element GQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element RD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element AD
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element FREQ
+\end{verbatim}
+
+\begin{verbatim}
+## Extracting gt element DP4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{vcf_m1098_tidy}\OperatorTok{$}\NormalTok{fix}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 2,841 x 21
+##    ChromKey CHROM    POS ID    REF   ALT    QUAL FILTER    DP SOMATIC SS   
+##       <int> <chr>  <int> <chr> <chr> <chr> <dbl> <chr>  <int> <lgl>   <chr>
+##  1        6 chr10 3.14e6 <NA>  A     G        NA PASS      98 TRUE    2    
+##  2        6 chr10 7.74e6 <NA>  A     C        NA PASS      63 TRUE    2    
+##  3        6 chr10 7.81e6 <NA>  T     G        NA PASS      85 TRUE    2    
+##  4        6 chr10 8.78e6 <NA>  A     C        NA PASS      28 TRUE    2    
+##  5        6 chr10 1.12e7 <NA>  A     C        NA PASS     119 TRUE    2    
+##  6        6 chr10 1.44e7 <NA>  T     C        NA PASS     432 TRUE    2    
+##  7        6 chr10 2.22e7 <NA>  T     G        NA PASS      89 TRUE    2    
+##  8        6 chr10 2.31e7 <NA>  T     C        NA PASS     139 TRUE    2    
+##  9        6 chr10 2.32e7 <NA>  C     T        NA PASS     567 TRUE    2    
+## 10        6 chr10 2.40e7 <NA>  A     G        NA PASS     702 TRUE    2    
+## # ... with 2,831 more rows, and 10 more variables: SSC <chr>, GPV <dbl>,
+## #   SPV <dbl>, ANNOVAR_DATE <chr>, Func.refGene <chr>, Gene.refGene <chr>,
+## #   GeneDetail.refGene <chr>, ExonicFunc.refGene <chr>,
+## #   AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\hypertarget{get-pentanucleotide-context-for-all-variants}{%
+\section{Get pentanucleotide context for all
+variants}\label{get-pentanucleotide-context-for-all-variants}}
+
+\hypertarget{load-the-reference-genome-as-a-bsgenome-object}{%
+\subsection{Load the reference genome as a BSgenome
+object}\label{load-the-reference-genome-as-a-bsgenome-object}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mm10_genome =}\StringTok{ }\NormalTok{BSgenome.Mmusculus.UCSC.mm10}
+\NormalTok{mm10_genome}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Mouse genome:
+## # organism: Mus musculus (Mouse)
+## # provider: UCSC
+## # provider version: mm10
+## # release date: Dec. 2011
+## # release name: Genome Reference Consortium GRCm38
+## # 66 sequences:
+## #   chr1                 chr2                 chr3                
+## #   chr4                 chr5                 chr6                
+## #   chr7                 chr8                 chr9                
+## #   chr10                chr11                chr12               
+## #   chr13                chr14                chr15               
+## #   ...                  ...                  ...                 
+## #   chrUn_GL456372       chrUn_GL456378       chrUn_GL456379      
+## #   chrUn_GL456381       chrUn_GL456382       chrUn_GL456383      
+## #   chrUn_GL456385       chrUn_GL456387       chrUn_GL456389      
+## #   chrUn_GL456390       chrUn_GL456392       chrUn_GL456393      
+## #   chrUn_GL456394       chrUn_GL456396       chrUn_JH584304      
+## # (use 'seqnames()' to see all the sequence names, use the '$' or '[['
+## # operator to access a given sequence)
+\end{verbatim}
+
+\hypertarget{obtain-the-tri--penta--and-icosanucleotide-context-from-the-reference-genome-using-the-tidy-vcf-data}{%
+\subsection{Obtain the tri-, penta-, and icosanucleotide context from
+the reference genome using the tidy VCF
+data}\label{obtain-the-tri--penta--and-icosanucleotide-context-from-the-reference-genome-using-the-tidy-vcf-data}}
+
+Take the tidy VCF data and use BSgenome \texttt{getSeq()} to get the
+pentanucleotide context for every variant. Use \texttt{mutate()} to turn
+this into a new column in the tibble.
+
+m079:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m079_contexts =}\StringTok{ }\NormalTok{vcf_m079_tidy}\OperatorTok{$}\NormalTok{fix }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, tri_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{3}\NormalTok{, }\DecValTok{3}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, penta_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, icosa_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{12}\NormalTok{, }\DecValTok{21}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, tri_context_}\DecValTok{2}\NormalTok{, tri_context_}\DecValTok{3}\NormalTok{, penta_context, penta_context_}\DecValTok{2}\NormalTok{, penta_context_}\DecValTok{3}\NormalTok{, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{, }\KeywordTok{everything}\NormalTok{())}
+
+\NormalTok{m079_contexts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 4,875 x 30
+##    CHROM    POS REF   ALT   tri_context tri_context_2 tri_context_3
+##    <chr>  <int> <chr> <chr> <chr>       <chr>         <chr>        
+##  1 chr10 3.95e6 A     G     AAC         A>G:AAC       A[A>G]C      
+##  2 chr10 3.95e6 T     G     ATT         T>G:ATT       A[T>G]T      
+##  3 chr10 3.95e6 T     G     TTT         T>G:TTT       T[T>G]T      
+##  4 chr10 3.96e6 C     T     ACG         C>T:ACG       A[C>T]G      
+##  5 chr10 5.34e6 A     G     CAG         A>G:CAG       C[A>G]G      
+##  6 chr10 5.79e6 T     G     ATT         T>G:ATT       A[T>G]T      
+##  7 chr10 5.79e6 T     C     TTG         T>C:TTG       T[T>C]G      
+##  8 chr10 7.70e6 C     T     TCG         C>T:TCG       T[C>T]G      
+##  9 chr10 8.25e6 A     C     AAA         A>C:AAA       A[A>C]A      
+## 10 chr10 9.68e6 G     A     CGA         G>A:CGA       C[G>A]A      
+## # ... with 4,865 more rows, and 23 more variables: penta_context <chr>,
+## #   penta_context_2 <chr>, penta_context_3 <chr>, icosa_context <chr>,
+## #   icosa_context_2 <chr>, icosa_context_3 <chr>, ChromKey <int>,
+## #   ID <chr>, QUAL <dbl>, FILTER <chr>, DP <int>, SOMATIC <lgl>, SS <chr>,
+## #   SSC <chr>, GPV <dbl>, SPV <dbl>, ANNOVAR_DATE <chr>,
+## #   Func.refGene <chr>, Gene.refGene <chr>, GeneDetail.refGene <chr>,
+## #   ExonicFunc.refGene <chr>, AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+m084:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m084_contexts =}\StringTok{ }\NormalTok{vcf_m084_tidy}\OperatorTok{$}\NormalTok{fix }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, tri_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{3}\NormalTok{, }\DecValTok{3}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, penta_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, icosa_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{12}\NormalTok{, }\DecValTok{21}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, tri_context_}\DecValTok{2}\NormalTok{, tri_context_}\DecValTok{3}\NormalTok{, penta_context, penta_context_}\DecValTok{2}\NormalTok{, penta_context_}\DecValTok{3}\NormalTok{, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{, }\KeywordTok{everything}\NormalTok{())}
+
+\NormalTok{m084_contexts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 6,784 x 30
+##    CHROM    POS REF   ALT   tri_context tri_context_2 tri_context_3
+##    <chr>  <int> <chr> <chr> <chr>       <chr>         <chr>        
+##  1 chr10 3.14e6 T     G     ATT         T>G:ATT       A[T>G]T      
+##  2 chr10 4.44e6 C     T     ACG         C>T:ACG       A[C>T]G      
+##  3 chr10 4.45e6 A     C     GAA         A>C:GAA       G[A>C]A      
+##  4 chr10 4.86e6 T     C     TTC         T>C:TTC       T[T>C]C      
+##  5 chr10 5.23e6 G     A     TGC         G>A:TGC       T[G>A]C      
+##  6 chr10 5.23e6 C     T     TCG         C>T:TCG       T[C>T]G      
+##  7 chr10 5.33e6 A     C     AAG         A>C:AAG       A[A>C]G      
+##  8 chr10 5.37e6 T     G     TTT         T>G:TTT       T[T>G]T      
+##  9 chr10 6.79e6 C     T     CCG         C>T:CCG       C[C>T]G      
+## 10 chr10 7.49e6 T     G     GTG         T>G:GTG       G[T>G]G      
+## # ... with 6,774 more rows, and 23 more variables: penta_context <chr>,
+## #   penta_context_2 <chr>, penta_context_3 <chr>, icosa_context <chr>,
+## #   icosa_context_2 <chr>, icosa_context_3 <chr>, ChromKey <int>,
+## #   ID <chr>, QUAL <dbl>, FILTER <chr>, DP <int>, SOMATIC <lgl>, SS <chr>,
+## #   SSC <chr>, GPV <dbl>, SPV <dbl>, ANNOVAR_DATE <chr>,
+## #   Func.refGene <chr>, Gene.refGene <chr>, GeneDetail.refGene <chr>,
+## #   ExonicFunc.refGene <chr>, AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+m122:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m122_contexts =}\StringTok{ }\NormalTok{vcf_m122_tidy}\OperatorTok{$}\NormalTok{fix }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, tri_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{3}\NormalTok{, }\DecValTok{3}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, penta_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, icosa_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{12}\NormalTok{, }\DecValTok{21}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, tri_context_}\DecValTok{2}\NormalTok{, tri_context_}\DecValTok{3}\NormalTok{, penta_context, penta_context_}\DecValTok{2}\NormalTok{, penta_context_}\DecValTok{3}\NormalTok{, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{, }\KeywordTok{everything}\NormalTok{())}
+
+\NormalTok{m122_contexts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 11,424 x 30
+##    CHROM    POS REF   ALT   tri_context tri_context_2 tri_context_3
+##    <chr>  <int> <chr> <chr> <chr>       <chr>         <chr>        
+##  1 chr10 3.17e6 A     G     AAT         A>G:AAT       A[A>G]T      
+##  2 chr10 3.27e6 G     A     GGT         G>A:GGT       G[G>A]T      
+##  3 chr10 3.43e6 A     C     AAA         A>C:AAA       A[A>C]A      
+##  4 chr10 3.93e6 T     C     ATG         T>C:ATG       A[T>C]G      
+##  5 chr10 3.95e6 A     G     TAC         A>G:TAC       T[A>G]C      
+##  6 chr10 4.02e6 C     T     CCG         C>T:CCG       C[C>T]G      
+##  7 chr10 4.02e6 T     C     TTG         T>C:TTG       T[T>C]G      
+##  8 chr10 4.05e6 C     T     CCG         C>T:CCG       C[C>T]G      
+##  9 chr10 4.35e6 C     T     GCA         C>T:GCA       G[C>T]A      
+## 10 chr10 4.36e6 T     G     CTG         T>G:CTG       C[T>G]G      
+## # ... with 11,414 more rows, and 23 more variables: penta_context <chr>,
+## #   penta_context_2 <chr>, penta_context_3 <chr>, icosa_context <chr>,
+## #   icosa_context_2 <chr>, icosa_context_3 <chr>, ChromKey <int>,
+## #   ID <chr>, QUAL <dbl>, FILTER <chr>, DP <int>, SOMATIC <lgl>, SS <chr>,
+## #   SSC <chr>, GPV <dbl>, SPV <dbl>, ANNOVAR_DATE <chr>,
+## #   Func.refGene <chr>, Gene.refGene <chr>, GeneDetail.refGene <chr>,
+## #   ExonicFunc.refGene <chr>, AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+m124:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m124_contexts =}\StringTok{ }\NormalTok{vcf_m124_tidy}\OperatorTok{$}\NormalTok{fix }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, tri_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{3}\NormalTok{, }\DecValTok{3}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, penta_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, icosa_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{12}\NormalTok{, }\DecValTok{21}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, tri_context_}\DecValTok{2}\NormalTok{, tri_context_}\DecValTok{3}\NormalTok{, penta_context, penta_context_}\DecValTok{2}\NormalTok{, penta_context_}\DecValTok{3}\NormalTok{, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{, }\KeywordTok{everything}\NormalTok{())}
+
+\NormalTok{m124_contexts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 2,249 x 30
+##    CHROM    POS REF   ALT   tri_context tri_context_2 tri_context_3
+##    <chr>  <int> <chr> <chr> <chr>       <chr>         <chr>        
+##  1 chr10 6.94e6 T     G     TTT         T>G:TTT       T[T>G]T      
+##  2 chr10 9.87e6 C     T     ACT         C>T:ACT       A[C>T]T      
+##  3 chr10 1.12e7 T     G     TTT         T>G:TTT       T[T>G]T      
+##  4 chr10 1.12e7 A     C     TAA         A>C:TAA       T[A>C]A      
+##  5 chr10 1.71e7 T     C     CTT         T>C:CTT       C[T>C]T      
+##  6 chr10 1.86e7 T     G     TTT         T>G:TTT       T[T>G]T      
+##  7 chr10 2.01e7 C     T     GCG         C>T:GCG       G[C>T]G      
+##  8 chr10 2.39e7 A     G     AAT         A>G:AAT       A[A>G]T      
+##  9 chr10 2.40e7 T     C     GTA         T>C:GTA       G[T>C]A      
+## 10 chr10 2.43e7 T     C     TTA         T>C:TTA       T[T>C]A      
+## # ... with 2,239 more rows, and 23 more variables: penta_context <chr>,
+## #   penta_context_2 <chr>, penta_context_3 <chr>, icosa_context <chr>,
+## #   icosa_context_2 <chr>, icosa_context_3 <chr>, ChromKey <int>,
+## #   ID <chr>, QUAL <dbl>, FILTER <chr>, DP <int>, SOMATIC <lgl>, SS <chr>,
+## #   SSC <chr>, GPV <dbl>, SPV <dbl>, ANNOVAR_DATE <chr>,
+## #   Func.refGene <chr>, Gene.refGene <chr>, GeneDetail.refGene <chr>,
+## #   ExonicFunc.refGene <chr>, AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+m1098:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m1098_contexts =}\StringTok{ }\NormalTok{vcf_m1098_tidy}\OperatorTok{$}\NormalTok{fix }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, tri_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{tri_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(tri_context, }\DecValTok{3}\NormalTok{, }\DecValTok{3}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{2}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, penta_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{penta_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(penta_context, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context =} \KeywordTok{getSeq}\NormalTok{(}\DataTypeTok{x=}\NormalTok{mm10_genome, }
+                          \DataTypeTok{names=}\NormalTok{CHROM, }
+                          \DataTypeTok{start=}\NormalTok{(POS }\OperatorTok{-}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{end=}\NormalTok{(POS }\OperatorTok{+}\StringTok{ }\DecValTok{10}\NormalTok{), }
+                          \DataTypeTok{as.character=}\NormalTok{T)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_2 =} \KeywordTok{str_c}\NormalTok{(REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{":"}\NormalTok{, icosa_context)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{icosa_context_3 =} \KeywordTok{str_c}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{1}\NormalTok{, }\DecValTok{10}\NormalTok{), }\StringTok{"["}\NormalTok{, REF, }\StringTok{">"}\NormalTok{, ALT, }\StringTok{"]"}\NormalTok{, }\KeywordTok{str_sub}\NormalTok{(icosa_context, }\DecValTok{12}\NormalTok{, }\DecValTok{21}\NormalTok{))) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, tri_context_}\DecValTok{2}\NormalTok{, tri_context_}\DecValTok{3}\NormalTok{, penta_context, penta_context_}\DecValTok{2}\NormalTok{, penta_context_}\DecValTok{3}\NormalTok{, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{, }\KeywordTok{everything}\NormalTok{())}
+
+\NormalTok{m1098_contexts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 2,841 x 30
+##    CHROM    POS REF   ALT   tri_context tri_context_2 tri_context_3
+##    <chr>  <int> <chr> <chr> <chr>       <chr>         <chr>        
+##  1 chr10 3.14e6 A     G     GAC         A>G:GAC       G[A>G]C      
+##  2 chr10 7.74e6 A     C     AAT         A>C:AAT       A[A>C]T      
+##  3 chr10 7.81e6 T     G     TTT         T>G:TTT       T[T>G]T      
+##  4 chr10 8.78e6 A     C     AAG         A>C:AAG       A[A>C]G      
+##  5 chr10 1.12e7 A     C     AAA         A>C:AAA       A[A>C]A      
+##  6 chr10 1.44e7 T     C     ATT         T>C:ATT       A[T>C]T      
+##  7 chr10 2.22e7 T     G     GTT         T>G:GTT       G[T>G]T      
+##  8 chr10 2.31e7 T     C     ATA         T>C:ATA       A[T>C]A      
+##  9 chr10 2.32e7 C     T     CCG         C>T:CCG       C[C>T]G      
+## 10 chr10 2.40e7 A     G     AAC         A>G:AAC       A[A>G]C      
+## # ... with 2,831 more rows, and 23 more variables: penta_context <chr>,
+## #   penta_context_2 <chr>, penta_context_3 <chr>, icosa_context <chr>,
+## #   icosa_context_2 <chr>, icosa_context_3 <chr>, ChromKey <int>,
+## #   ID <chr>, QUAL <dbl>, FILTER <chr>, DP <int>, SOMATIC <lgl>, SS <chr>,
+## #   SSC <chr>, GPV <dbl>, SPV <dbl>, ANNOVAR_DATE <chr>,
+## #   Func.refGene <chr>, Gene.refGene <chr>, GeneDetail.refGene <chr>,
+## #   ExonicFunc.refGene <chr>, AAChange.refGene <chr>, ALLELE_END <lgl>
+\end{verbatim}
+
+\hypertarget{visualize-results}{%
+\section{Visualize results}\label{visualize-results}}
+
+\hypertarget{visualizing-trinucleotide-context-distribution}{%
+\subsection{Visualizing trinucleotide context
+distribution}\label{visualizing-trinucleotide-context-distribution}}
+
+\hypertarget{visualize-n-2-5-position-base-frequency-in-tctg-mutations}{%
+\subsection{Visualize n-2 (5') position base frequency in
+T{[}C\textgreater T{]}G
+mutations}\label{visualize-n-2-5-position-base-frequency-in-tctg-mutations}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# m079}
+\NormalTok{m079_CT =}\StringTok{ }\NormalTok{m079_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "C"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "T"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m079_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m079-CT.txt")}
+\NormalTok{m079_CT_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m079_CT}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\NormalTok{m079_CT_TCG =}\StringTok{ }\NormalTok{m079_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(tri_context_}\DecValTok{3} \OperatorTok{==}\StringTok{ "T[C>T]G"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m079_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m079-CT-TCG.txt")}
+\NormalTok{m079_CT_TCG_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m079_CT_TCG}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m079_CT_TCG_nMin2, }\DataTypeTok{main =} \StringTok{"m079 T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{plot}\NormalTok{(m079_CT_nMin2, }\DataTypeTok{main =} \StringTok{"m079 C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-2.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# m084}
+\NormalTok{m084_CT =}\StringTok{ }\NormalTok{m084_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "C"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "T"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m084_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m084-CT.txt")}
+\NormalTok{m084_CT_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m084_CT}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m084_CT_nMin2, }\DataTypeTok{main =} \StringTok{"m084 C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-3.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m084_CT_TCG =}\StringTok{ }\NormalTok{m084_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(tri_context_}\DecValTok{3} \OperatorTok{==}\StringTok{ "T[C>T]G"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m084_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m084-CT-TCG.txt")}
+\NormalTok{m084_CT_TCG_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m084_CT_TCG}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m084_CT_TCG_nMin2, }\DataTypeTok{main =} \StringTok{"m084 T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-4.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# m122}
+\NormalTok{m122_CT =}\StringTok{ }\NormalTok{m122_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "C"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "T"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m122_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m122-CT.txt")}
+\NormalTok{m122_CT_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m122_CT}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m122_CT_nMin2, }\DataTypeTok{main =} \StringTok{"m122 C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-5.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m122_CT_TCG =}\StringTok{ }\NormalTok{m122_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(tri_context_}\DecValTok{3} \OperatorTok{==}\StringTok{ "T[C>T]G"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m122_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m122-CT-TCG.txt")}
+\NormalTok{m122_CT_TCG_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m122_CT_TCG}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m122_CT_TCG_nMin2, }\DataTypeTok{main =} \StringTok{"m122 T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-6.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# m124}
+\NormalTok{m124_CT =}\StringTok{ }\NormalTok{m124_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "C"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "T"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m124_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m124-CT.txt")}
+\NormalTok{m124_CT_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m124_CT}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m124_CT_nMin2, }\DataTypeTok{main =} \StringTok{"m124 C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-7.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m124_CT_TCG =}\StringTok{ }\NormalTok{m124_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(tri_context_}\DecValTok{3} \OperatorTok{==}\StringTok{ "T[C>T]G"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m124_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m124-CT-TCG.txt")}
+\NormalTok{m124_CT_TCG_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m124_CT_TCG}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m124_CT_TCG_nMin2, }\DataTypeTok{main =} \StringTok{"m124 T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-8.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# m1098}
+\NormalTok{m1098_CT =}\StringTok{ }\NormalTok{m1098_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "C"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "T"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m1098_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m1098-CT.txt")}
+\NormalTok{m1098_CT_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m1098_CT}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m1098_CT_nMin2, }\DataTypeTok{main =} \StringTok{"m1098 C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-9.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{m1098_CT_TCG =}\StringTok{ }\NormalTok{m1098_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(tri_context_}\DecValTok{3} \OperatorTok{==}\StringTok{ "T[C>T]G"}\NormalTok{)}
+\CommentTok{# write_tsv(x = m1098_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m1098-CT-TCG.txt")}
+\NormalTok{m1098_CT_TCG_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(m1098_CT_TCG}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(m1098_CT_TCG_nMin2, }\DataTypeTok{main =} \StringTok{"m1098 T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-10.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# All}
+\NormalTok{CT_muts_all =}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(m079_CT, m084_CT, m122_CT, m124_CT, m1098_CT)}
+\NormalTok{CT_muts_all_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(CT_muts_all}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(CT_muts_all_nMin2, }\DataTypeTok{main =} \StringTok{"All C>T n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-11.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{CT_TCG_muts_all =}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(m079_CT_TCG, m084_CT_TCG, m122_CT_TCG, m124_CT_TCG, m1098_CT_TCG)}
+\NormalTok{CT_TCG_muts_all_nMin2 =}\StringTok{ }\KeywordTok{factor}\NormalTok{(}\KeywordTok{str_sub}\NormalTok{(CT_TCG_muts_all}\OperatorTok{$}\NormalTok{penta_context, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(CT_TCG_muts_all_nMin2, }\DataTypeTok{main =} \StringTok{"All T[C>T]G n-2 Nucleotide Distribution"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/unnamed-chunk-4-12.pdf}
+
+\hypertarget{visualize-tctg-mutations-icosanucleotide-context-for-nucleotide-runs}{%
+\subsection{Visualize T{[}C\textgreater T{]}G mutations icosanucleotide
+context for nucleotide
+runs}\label{visualize-tctg-mutations-icosanucleotide-context-for-nucleotide-runs}}
+
+m079:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts}
+\NormalTok{m079_TG_TTT_icosa =}\StringTok{ }\NormalTok{m079_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "T"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "G"} \OperatorTok{&}\StringTok{ }\NormalTok{tri_context }\OperatorTok{==}\StringTok{ "TTT"}\NormalTok{)}
+
+\CommentTok{# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list}
+\NormalTok{m079_TG_TTT_icosa_T_runs =}\StringTok{ }\KeywordTok{str_locate_all}\NormalTok{(}\DataTypeTok{string =}\NormalTok{ m079_TG_TTT_icosa[[}\StringTok{"icosa_context"}\NormalTok{]], }\DataTypeTok{pattern =} \StringTok{"T*TTTT*"}\NormalTok{)}
+
+\CommentTok{# Initalize pattern lengths vector}
+\NormalTok{TTT_run_lengths =}\StringTok{ }\KeywordTok{vector}\NormalTok{(}\DataTypeTok{mode =} \StringTok{"numeric"}\NormalTok{, }\DataTypeTok{length =} \DecValTok{0}\NormalTok{)}
+\CommentTok{# FOR: every variant's icosanucleotide context set of matched patterns (list elements), }
+\ControlFlowTok{for}\NormalTok{ (var }\ControlFlowTok{in}\NormalTok{ m079_TG_TTT_icosa_T_runs) \{}
+\NormalTok{    var =}\StringTok{ }\KeywordTok{as_tibble}\NormalTok{(var)}
+    \CommentTok{# print(var)}
+    \CommentTok{# str(var)}
+    \CommentTok{# FOR: every pattern of 3+ T's matched (list elements elements),}
+    \ControlFlowTok{for}\NormalTok{ (pattern }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(var)) \{}
+        \CommentTok{# print(var[pattern, ])}
+        \CommentTok{# str(var[pattern, ])}
+\NormalTok{        full_seq_index =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{1}\NormalTok{]), }\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{2}\NormalTok{]))}
+        \CommentTok{# expand the full sequences}
+        \CommentTok{# print(full_seq_index)}
+        \CommentTok{# IF: 11 (position of the variant) is included 'between' the sequence bounds}
+        \ControlFlowTok{if}\NormalTok{ (}\DecValTok{11} \OperatorTok{%in%}\StringTok{ }\NormalTok{full_seq_index) \{}
+            \CommentTok{# get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context}
+\NormalTok{            TTT_run_lengths =}\StringTok{  }\KeywordTok{c}\NormalTok{(TTT_run_lengths, }\KeywordTok{length}\NormalTok{(full_seq_index))}
+        \CommentTok{# ELSE: do nothing...}
+\NormalTok{        \}}
+\NormalTok{    \}}
+\NormalTok{\}}
+
+\CommentTok{# Plot histogram of distribution of distribution of lengths of T runs}
+\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{data.frame}\NormalTok{(TTT_run_lengths), }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ TTT_run_lengths)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"m079: Distribution of T Repeat Lengths Around}\CharTok{\textbackslash{}n}\StringTok{T>G:TTT Variant Sites"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{text =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{size =} \DecValTok{16}\NormalTok{)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{xlab}\NormalTok{(}\StringTok{"Length of T Repeat"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/m079 T runs T\textgreater{}G:TTT-1.pdf}
+
+m084:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts}
+\NormalTok{m084_TG_TTT_icosa =}\StringTok{ }\NormalTok{m084_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "T"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "G"} \OperatorTok{&}\StringTok{ }\NormalTok{tri_context }\OperatorTok{==}\StringTok{ "TTT"}\NormalTok{)}
+
+\CommentTok{# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list}
+\NormalTok{m084_TG_TTT_icosa_T_runs =}\StringTok{ }\KeywordTok{str_locate_all}\NormalTok{(}\DataTypeTok{string =}\NormalTok{ m084_TG_TTT_icosa[[}\StringTok{"icosa_context"}\NormalTok{]], }\DataTypeTok{pattern =} \StringTok{"T*TTTT*"}\NormalTok{)}
+
+\CommentTok{# Initalize pattern lengths vector}
+\NormalTok{TTT_run_lengths =}\StringTok{ }\KeywordTok{vector}\NormalTok{(}\DataTypeTok{mode =} \StringTok{"numeric"}\NormalTok{, }\DataTypeTok{length =} \DecValTok{0}\NormalTok{)}
+\CommentTok{# FOR: every variant's icosanucleotide context set of matched patterns (list elements), }
+\ControlFlowTok{for}\NormalTok{ (var }\ControlFlowTok{in}\NormalTok{ m084_TG_TTT_icosa_T_runs) \{}
+\NormalTok{    var =}\StringTok{ }\KeywordTok{as_tibble}\NormalTok{(var)}
+    \CommentTok{# print(var)}
+    \CommentTok{# str(var)}
+    \CommentTok{# FOR: every pattern of 3+ T's matched (list elements elements),}
+    \ControlFlowTok{for}\NormalTok{ (pattern }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(var)) \{}
+        \CommentTok{# print(var[pattern, ])}
+        \CommentTok{# str(var[pattern, ])}
+\NormalTok{        full_seq_index =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{1}\NormalTok{]), }\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{2}\NormalTok{]))}
+        \CommentTok{# expand the full sequences}
+        \CommentTok{# print(full_seq_index)}
+        \CommentTok{# IF: 11 (position of the variant) is included 'between' the sequence bounds}
+        \ControlFlowTok{if}\NormalTok{ (}\DecValTok{11} \OperatorTok{%in%}\StringTok{ }\NormalTok{full_seq_index) \{}
+            \CommentTok{# get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context}
+\NormalTok{            TTT_run_lengths =}\StringTok{  }\KeywordTok{c}\NormalTok{(TTT_run_lengths, }\KeywordTok{length}\NormalTok{(full_seq_index))}
+        \CommentTok{# ELSE: do nothing...}
+\NormalTok{        \}}
+\NormalTok{    \}}
+\NormalTok{\}}
+
+\CommentTok{# Plot histogram of distribution of distribution of lengths of T runs}
+\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{data.frame}\NormalTok{(TTT_run_lengths), }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ TTT_run_lengths)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"m084: Distribution of T Repeat Lengths Around}\CharTok{\textbackslash{}n}\StringTok{T>G:TTT Variant Sites"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{text =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{size =} \DecValTok{16}\NormalTok{)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{xlab}\NormalTok{(}\StringTok{"Length of T Repeat"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/m084 T runs T\textgreater{}G:TTT-1.pdf}
+
+m122:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts}
+\NormalTok{m122_TG_TTT_icosa =}\StringTok{ }\NormalTok{m122_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "T"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "G"} \OperatorTok{&}\StringTok{ }\NormalTok{tri_context }\OperatorTok{==}\StringTok{ "TTT"}\NormalTok{)}
+
+\CommentTok{# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list}
+\NormalTok{m122_TG_TTT_icosa_T_runs =}\StringTok{ }\KeywordTok{str_locate_all}\NormalTok{(}\DataTypeTok{string =}\NormalTok{ m122_TG_TTT_icosa[[}\StringTok{"icosa_context"}\NormalTok{]], }\DataTypeTok{pattern =} \StringTok{"T*TTTT*"}\NormalTok{)}
+
+\CommentTok{# Initalize pattern lengths vector}
+\NormalTok{TTT_run_lengths =}\StringTok{ }\KeywordTok{vector}\NormalTok{(}\DataTypeTok{mode =} \StringTok{"numeric"}\NormalTok{, }\DataTypeTok{length =} \DecValTok{0}\NormalTok{)}
+\CommentTok{# FOR: every variant's icosanucleotide context set of matched patterns (list elements), }
+\ControlFlowTok{for}\NormalTok{ (var }\ControlFlowTok{in}\NormalTok{ m122_TG_TTT_icosa_T_runs) \{}
+\NormalTok{    var =}\StringTok{ }\KeywordTok{as_tibble}\NormalTok{(var)}
+    \CommentTok{# print(var)}
+    \CommentTok{# str(var)}
+    \CommentTok{# FOR: every pattern of 3+ T's matched (list elements elements),}
+    \ControlFlowTok{for}\NormalTok{ (pattern }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(var)) \{}
+        \CommentTok{# print(var[pattern, ])}
+        \CommentTok{# str(var[pattern, ])}
+\NormalTok{        full_seq_index =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{1}\NormalTok{]), }\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{2}\NormalTok{]))}
+        \CommentTok{# expand the full sequences}
+        \CommentTok{# print(full_seq_index)}
+        \CommentTok{# IF: 11 (position of the variant) is included 'between' the sequence bounds}
+        \ControlFlowTok{if}\NormalTok{ (}\DecValTok{11} \OperatorTok{%in%}\StringTok{ }\NormalTok{full_seq_index) \{}
+            \CommentTok{# get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context}
+\NormalTok{            TTT_run_lengths =}\StringTok{  }\KeywordTok{c}\NormalTok{(TTT_run_lengths, }\KeywordTok{length}\NormalTok{(full_seq_index))}
+        \CommentTok{# ELSE: do nothing...}
+\NormalTok{        \}}
+\NormalTok{    \}}
+\NormalTok{\}}
+
+\CommentTok{# Plot histogram of distribution of distribution of lengths of T runs}
+\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{data.frame}\NormalTok{(TTT_run_lengths), }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ TTT_run_lengths)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"m122: Distribution of T Repeat Lengths Around}\CharTok{\textbackslash{}n}\StringTok{T>G:TTT Variant Sites"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{text =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{size =} \DecValTok{16}\NormalTok{)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{xlab}\NormalTok{(}\StringTok{"Length of T Repeat"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/m122 T runs T\textgreater{}G:TTT-1.pdf}
+
+m124:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts}
+\NormalTok{m124_TG_TTT_icosa =}\StringTok{ }\NormalTok{m124_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "T"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "G"} \OperatorTok{&}\StringTok{ }\NormalTok{tri_context }\OperatorTok{==}\StringTok{ "TTT"}\NormalTok{)}
+
+\CommentTok{# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list}
+\NormalTok{m124_TG_TTT_icosa_T_runs =}\StringTok{ }\KeywordTok{str_locate_all}\NormalTok{(}\DataTypeTok{string =}\NormalTok{ m124_TG_TTT_icosa[[}\StringTok{"icosa_context"}\NormalTok{]], }\DataTypeTok{pattern =} \StringTok{"T*TTTT*"}\NormalTok{)}
+
+\CommentTok{# Initalize pattern lengths vector}
+\NormalTok{TTT_run_lengths =}\StringTok{ }\KeywordTok{vector}\NormalTok{(}\DataTypeTok{mode =} \StringTok{"numeric"}\NormalTok{, }\DataTypeTok{length =} \DecValTok{0}\NormalTok{)}
+\CommentTok{# FOR: every variant's icosanucleotide context set of matched patterns (list elements), }
+\ControlFlowTok{for}\NormalTok{ (var }\ControlFlowTok{in}\NormalTok{ m124_TG_TTT_icosa_T_runs) \{}
+\NormalTok{    var =}\StringTok{ }\KeywordTok{as_tibble}\NormalTok{(var)}
+    \CommentTok{# print(var)}
+    \CommentTok{# str(var)}
+    \CommentTok{# FOR: every pattern of 3+ T's matched (list elements elements),}
+    \ControlFlowTok{for}\NormalTok{ (pattern }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(var)) \{}
+        \CommentTok{# print(var[pattern, ])}
+        \CommentTok{# str(var[pattern, ])}
+\NormalTok{        full_seq_index =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{1}\NormalTok{]), }\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{2}\NormalTok{]))}
+        \CommentTok{# expand the full sequences}
+        \CommentTok{# print(full_seq_index)}
+        \CommentTok{# IF: 11 (position of the variant) is included 'between' the sequence bounds}
+        \ControlFlowTok{if}\NormalTok{ (}\DecValTok{11} \OperatorTok{%in%}\StringTok{ }\NormalTok{full_seq_index) \{}
+            \CommentTok{# get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context}
+\NormalTok{            TTT_run_lengths =}\StringTok{  }\KeywordTok{c}\NormalTok{(TTT_run_lengths, }\KeywordTok{length}\NormalTok{(full_seq_index))}
+        \CommentTok{# ELSE: do nothing...}
+\NormalTok{        \}}
+\NormalTok{    \}}
+\NormalTok{\}}
+
+\CommentTok{# Plot histogram of distribution of distribution of lengths of T runs}
+\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{data.frame}\NormalTok{(TTT_run_lengths), }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ TTT_run_lengths)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"m124: Distribution of T Repeat Lengths Around}\CharTok{\textbackslash{}n}\StringTok{T>G:TTT Variant Sites"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{text =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{size =} \DecValTok{16}\NormalTok{)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{xlab}\NormalTok{(}\StringTok{"Length of T Repeat"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/m124 T runs T\textgreater{}G:TTT-1.pdf}
+
+m1098:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts}
+\NormalTok{m1098_TG_TTT_icosa =}\StringTok{ }\NormalTok{m1098_contexts }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{select}\NormalTok{(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_}\DecValTok{2}\NormalTok{, icosa_context_}\DecValTok{3}\NormalTok{) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{filter}\NormalTok{(REF }\OperatorTok{==}\StringTok{ "T"} \OperatorTok{&}\StringTok{ }\NormalTok{ALT }\OperatorTok{==}\StringTok{ "G"} \OperatorTok{&}\StringTok{ }\NormalTok{tri_context }\OperatorTok{==}\StringTok{ "TTT"}\NormalTok{)}
+
+\CommentTok{# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list}
+\NormalTok{m1098_TG_TTT_icosa_T_runs =}\StringTok{ }\KeywordTok{str_locate_all}\NormalTok{(}\DataTypeTok{string =}\NormalTok{ m1098_TG_TTT_icosa[[}\StringTok{"icosa_context"}\NormalTok{]], }\DataTypeTok{pattern =} \StringTok{"T*TTTT*"}\NormalTok{)}
+
+\CommentTok{# Initalize pattern lengths vector}
+\NormalTok{TTT_run_lengths =}\StringTok{ }\KeywordTok{vector}\NormalTok{(}\DataTypeTok{mode =} \StringTok{"numeric"}\NormalTok{, }\DataTypeTok{length =} \DecValTok{0}\NormalTok{)}
+\CommentTok{# FOR: every variant's icosanucleotide context set of matched patterns (list elements), }
+\ControlFlowTok{for}\NormalTok{ (var }\ControlFlowTok{in}\NormalTok{ m1098_TG_TTT_icosa_T_runs) \{}
+\NormalTok{    var =}\StringTok{ }\KeywordTok{as_tibble}\NormalTok{(var)}
+    \CommentTok{# print(var)}
+    \CommentTok{# str(var)}
+    \CommentTok{# FOR: every pattern of 3+ T's matched (list elements elements),}
+    \ControlFlowTok{for}\NormalTok{ (pattern }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(var)) \{}
+        \CommentTok{# print(var[pattern, ])}
+        \CommentTok{# str(var[pattern, ])}
+\NormalTok{        full_seq_index =}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{1}\NormalTok{]), }\KeywordTok{as.integer}\NormalTok{(var[pattern, }\DecValTok{2}\NormalTok{]))}
+        \CommentTok{# expand the full sequences}
+        \CommentTok{# print(full_seq_index)}
+        \CommentTok{# IF: 11 (position of the variant) is included 'between' the sequence bounds}
+        \ControlFlowTok{if}\NormalTok{ (}\DecValTok{11} \OperatorTok{%in%}\StringTok{ }\NormalTok{full_seq_index) \{}
+            \CommentTok{# get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context}
+\NormalTok{            TTT_run_lengths =}\StringTok{  }\KeywordTok{c}\NormalTok{(TTT_run_lengths, }\KeywordTok{length}\NormalTok{(full_seq_index))}
+        \CommentTok{# ELSE: do nothing...}
+\NormalTok{        \}}
+\NormalTok{    \}}
+\NormalTok{\}}
+
+\CommentTok{# Plot histogram of distribution of distribution of lengths of T runs}
+\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{data.frame}\NormalTok{(TTT_run_lengths), }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ TTT_run_lengths)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_histogram}\NormalTok{() }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"m1098: Distribution of T Repeat Lengths Around}\CharTok{\textbackslash{}n}\StringTok{T>G:TTT Variant Sites"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{text =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{size =} \DecValTok{16}\NormalTok{)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{xlab}\NormalTok{(}\StringTok{"Length of T Repeat"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+\end{verbatim}
+
+\includegraphics{variant-n-nucleotide-contexts_files/figure-latex/m1098 T runs T\textgreater{}G:TTT-1.pdf}
+
+
+\end{document}

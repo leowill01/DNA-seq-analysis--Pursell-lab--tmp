@@ -1,0 +1,88 @@
+---
+title: 'Query GDC Metadata with Case IDs'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 Jan 27
+  | Updated: '`r format(Sys.time(), "%Y %B %d")`'
+params:
+  IN_CASE_ID_TSV: 
+  OUT_DIR: 
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    number_sections: yes
+---
+
+# About
+
+`This script takes as input a TSV of newline-separated GDC case IDs and returns a table of relevant metadata. Currently this metadata is focused on POLE-mutant tumors and variants from the Varscan2 analysis workflow.
+` 
+## Usage
+
+# Setup
+
+Load packages, make results dir, 
+```{r setup}
+library(GenomicDataCommons)
+library(tidyverse)
+```
+
+Sample list of case IDs
+
+```{r case ids}
+input_table <- read_tsv(file = params$IN_CASE_ID_TSV)
+case_ids = input_table %>% 
+    select(GDC_case_ID)
+```
+
+Make files query:
+
+```{r files query}
+fquery = files()
+fquery
+```
+
+Select fields:
+
+```{r select fields}
+fquery = fquery %>% 
+    GenomicDataCommons::select(fields = c("cases.submitter_id", 
+                                          "experimental_strategy", 
+                                          "analysis.workflow_type"))
+fquery
+```
+
+Filter fields:
+
+```{r filter fields}
+fquery = fquery %>%
+    GenomicDataCommons::filter(~ cases.submitter_id %in% case_ids &
+                               analysis.workflow_type == "VarScan2 Annotation")
+fquery
+```
+
+Return response and results:
+
+```{r get response and results}
+# return all results
+fquery_results = fquery %>% 
+    results_all()
+fquery_results
+
+fquery_response = fquery %>% 
+    response_all()
+fquery_response
+```
+
+Turn results list into a tibble:
+
+```{r results to tibble}
+fquery_results_tib = as_tibble(fquery_results)
+fquery_results_tib = fquery_results_tib %>% 
+    unnest(cols = "cases", names_sep = ".")
+fquery_results_tib
+```

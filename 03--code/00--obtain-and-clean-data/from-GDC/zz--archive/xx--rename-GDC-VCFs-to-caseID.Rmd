@@ -1,0 +1,134 @@
+---
+title: "Rename GDC VCFs with Patient Case ID as Basename"
+author: "Leo Williams | Pursell Lab | Tulane University School of Medicine"
+date: |
+  | Created: January 17, 2020
+  | Updated: `r format(Sys.time(), "%B %d, %Y")`
+params:
+  IN_DIR_OF_GDC_VCFS: ''
+  IN_TAB_FILEBASEROOTNAMES_CASEIDUUID: ''
+  OUT_DIR: ''
+  
+  
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    number_sections: yes
+---
+
+# About
+
+This script takes as input a directory containing unzipped VCF files downloaded from the GDC, whose file basenames are the VCF UUID, and changes the file basename to the patient case ID for easier sample naming and recognition.
+
+## Usage
+
+Fill in YAML params according to desired analysis and then run R Markdown script interactively in RStudio.
+
+***If renaming VCFs in-place***, assign the same folder to `$IN_DIR_OF_GDC_VCFS` and `$OUT_DIR`.
+
+# Setup
+
+Load packages, set project root/working dir, make results dir, set global chunk options, and set knitr figure output path:
+
+```{r setup}
+
+# 1. load packages ----
+library(knitr)
+library(tidyverse)
+
+# 2. set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# 3. Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# 4. Make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+    dir_results = paste0(params$OUT_DIR,
+                         "/results",
+                         "--",
+                         params$OUT_OPT_ID,
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+} else {
+    dir_results = paste0(params$OUT_DIR,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+}
+
+# * 4.1. make tmp and results for tables and plots subdirectories ----
+dir_results_tables = paste0(dir_results, "/tables")
+dir.create(dir_results_tables)
+dir_results_plots = paste0(dir_results, "/plots")
+dir.create(dir_results_plots)
+
+dir_tmp = paste0(dir_results, "/tmp")
+dir.create(dir_tmp)
+
+# 5. get filepath of current script to copy into results dir ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# 6. Export shell environment variables ----
+Sys.setenv(
+	# results dirs and subdirs
+	dir_results = dir_results, 
+	dir_results_plots = dir_results_plots, 
+	dir_results_tables = dir_results_tables, 
+	# tmp dir
+	dir_tmp = dir_tmp,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+
+# 7. Set global chunk options ----
+opts_chunk$set(
+	tidy.opts = list(width.cutoff = 60),
+	tidy = TRUE,
+	dev = "pdf",
+	fig.path = paste0(dir_results, "/figures-Rmd/")
+)
+
+# 8. set ggplot theme ----
+theme_set(theme_classic() +
+          theme(panel.grid.major = element_line(colour = "#DDDDDD"),
+                panel.grid.minor = element_line(color = "#FFFFFF"),
+                text = element_text(size = 16, face = "bold")))
+```
+
+# Load data
+
+VCFs in `params$IN_DIR_OF_GDC_VCFS` already accessible
+
+# Analysis
+
+Change all GDC VCF file basenames from the GDC UUID to the patient case ID:
+
+```{zsh , engine.opts='-i'}
+# rename every .vcf file basename to case ID
+for i in "${IN_DIR_OF_GDC_VCFS}/"**/*.vep.vcf ; do
+    echo "$i"
+    
+    # grep case id from vcf file
+    CASE_ID=$(egrep -m 1 -i "individual" "$i" | \
+    egrep -io 'TCGA-[[:alnum:]]{2}-[[:alnum:]]{4}')
+    
+    # make new filename
+    NEW_FILENAME="${OUT_DIR}/${CASE_ID}.vep.vcf"
+    
+    # rename file
+    mv "$i" "$NEW_FILENAME"
+    
+done
+```

@@ -1,0 +1,72 @@
+---
+title: 'Template: R Notebook Analysis'
+author:
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+params:
+  # default
+  GDC_MANIFEST_FILE: '/Volumes/Pursell-Lab-HD/Pursell-lab/raw-data-master-repository/02--raw-data--external/NIH-GDC/TCGA−B5−A1MR--POLE-pol-mut-10ab/gdc_manifest_20200114_204445.txt'
+  GDC_TOKEN_FILE: '/Volumes/Pursell-Lab-HD/Pursell-lab/raw-data-master-repository/02--raw-data--external/NIH-GDC/gdc-user-token.2020-01-14T20_42_09.601Z.txt'
+  OUTPUT_DOWNLOAD_DIR: '/Volumes/Pursell-Lab-HD/Pursell-lab/raw-data-master-repository/02--raw-data--external/NIH-GDC/TCGA−B5−A1MR--POLE-pol-mut-10ab/download'
+  OPTIONAL_OUTPUT_ID: NULL
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    number_sections: yes
+---
+
+# About
+
+## I/O
+
+Inputs:
+
+Outputs:
+
+# Usage
+
+# Setup
+
+Load packages, set project root/working dir, make results dir, set global chunk options, and set knitr figure output path:
+
+```{r setup}
+# load packages
+library(knitr)
+library(GenomicDataCommons)
+library(tidyverse)
+
+# set global knit options
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# No timestamped 'results_dir' or figures output necessary for just downloading raw data
+
+```
+
+Set the GDC authorization token as an environment variable:
+
+```{r load gdc token}
+Sys.setenv(GDC_TOKEN_FILE = params$GDC_TOKEN_FILE)
+```
+
+Load the manifest as a data frame:
+
+```{r load manifest file}
+manifest_df <- read_tsv(file = params$GDC_MANIFEST_FILE)
+```
+
+# Download data
+
+```{r download GDC manifest}
+fnames
+```
+

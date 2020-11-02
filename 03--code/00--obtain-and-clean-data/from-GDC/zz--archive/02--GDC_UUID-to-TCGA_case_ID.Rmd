@@ -1,0 +1,122 @@
+---
+title: "Get TCGA Case IDs from a list of GDC File UUIDs"
+params:
+  OUTPUT_DIR: ''
+  FILEPATHS_UUIDS_FILE: ''
+  ORIG_CASEID_VARIANT_TABLE: ''
+---
+
+# About
+
+# Setup
+
+## Directory Setup
+
+```{r setup, results='hide'}
+# Load packages
+library(GenomicDataCommons)
+library(knitr)
+library(tidyverse)
+
+# Set global knit options
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+
+# Make results dir
+results_dir = paste0(params$OUTPUT_DIR, "/results--", format(Sys.time(), '%Y-%m-%d-%H%M%S'))
+dir.create(results_dir)
+```
+
+## Variable Setup
+
+```{r}
+# read in table of VCF filepaths and basenames (i.e. UUIDs of VCFs downloaded from the GDC)
+vcf_file_info <- read_tsv(file = params$FILEPATHS_UUIDS_FILE)
+vcf_file_info
+
+# Define optional original case_ID:variant table
+if (params$ORIG_CASEID_VARIANT_TABLE != "NA") {
+    case_id_variant_table <- read_tsv(params$ORIG_CASEID_VARIANT_TABLE)
+}
+```
+
+# Get [Case ID:File UUID] Conversion Table
+
+Check GDC network status:
+
+```{r}
+status()
+```
+
+Use the input file list of UUIDs and then use a `GenomicDataCommons::files()` query to obtain a table of the file UUIDs with the TCGA case IDs for that file (i.e. the submitter ID).
+
+```{r}
+# create GDC query and retrieve results
+fquery_UUIDs <- files() %>% 
+    GenomicDataCommons::filter(~ file_id %in% vcf_file_info$VCF_basename) %>% 
+    GenomicDataCommons::select(c("cases.submitter_id", 
+                                 "file_id")) %>% 
+    results_all()
+
+# show summary of query results
+summary(fquery_UUIDs)
+str(fquery_UUIDs, max = 1)
+for (i in 1:length(fquery_UUIDs)) {
+    print(head(fquery_UUIDs[[i]]))
+}
+```
+
+Iterate through query results and make the ID conversion table
+
+```{r}
+# initiate empty table
+id_conversion_table = tibble(GDC_file_UUID = NA, 
+							 TCGA_case_ID = NA)
+
+# iterate through results and add each UUID"caseID pair to the table
+for (i in 1:length(fquery_UUIDs$cases)) {
+	id_conversion_table[i, "GDC_file_UUID"] = fquery_UUIDs$file_id[i]
+	id_conversion_table[i, "TCGA_case_ID"] = fquery_UUIDs$cases[[i]][[1]]
+    # FIXME: this way of doing it doesnt work and throws an error:
+# 	id_conversion_table$GDC_file_UUID[[i]] = fquery_UUIDs$file_id[i]
+# 	id_conversion_table$TCGA_case_ID[[i]] = fquery_UUIDs$cases[[i]][[1]]
+}
+
+glimpse(id_conversion_table)
+```
+
+Combine ID conversion table with the original info table by matching the file UUID with the correct TCGA case ID
+
+```{r}
+# Join tables based on the UUID values using left_join()
+vcf_file_info = vcf_file_info %>% 
+    left_join(id_conversion_table, by = c("VCF_basename" = "GDC_file_UUID"))
+
+
+# save table
+write_tsv(x = vcf_file_info, 
+          path = paste0(results_dir, "/vcf-file-tcga-IDs-info.tsv"))
+```
+
+# Optional: Add original matched case ID variants to table
+
+For the current project, I started with a list of TCGA case IDs that also had corresponding POLE variants. To add these corresponding variants to this table, this code will check if the param exists and if so, it will add the variants to the table.
+
+```{r}
+# # check if param$ORIG_CASEID_VARIANT_TABLE exists
+if (exists("case_id_variant_table")) {
+    # Join tables based on the TCGA case IDs using left_join()
+    vcf_file_info = vcf_file_info %>% 
+        left_join(case_id_variant_table, by = "TCGA_case_ID")
+    
+    # save table and overwrite previous one
+    write_tsv(x = vcf_file_info, 
+              path = paste0(results_dir, "/vcf-file-tcga-IDs-info.tsv"))
+}
+```
+

@@ -1,0 +1,2472 @@
+---
+title: 'Mutation Signature Analysis'
+author: 'Leo Williams'
+date: |
+  Created: 2019 07_Jul 02
+  Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+params:
+  # REQUIRED ----------------------------------------
+  info_table: '' # must have columns: 'sample_name', where all values are unique; absolute_filepath,
+  output_dir: ''
+  out_optional_ID: ''
+  # STATIC ----------------------------------------
+  cosmic_signatures: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/02--data/02--reference-data/COMIC-mutation-signatures/COSMIC-mutation-signatures-v3-no-artif-formatted.csv' # set once and don't change unless you have to
+  
+  # OPTIONAL ----------------------------------------
+  extract_denovo_sigs: no # {yes|no}; default: no
+  is_iteration: no # yes or no; default = no. Set to 'yes' when running simple iterations. This turns off steps like reading & parsing VCFs and rank estimation.
+  extract_and_fit_nrun: 50 # {int}; default: 50. 10 is low for quick analyses, set to 30-50 for  more robust estimate of the factorization rank (Gaujoux 2010)
+  num_of_denovo_sigs_to_extract: 2 # {int}; default: 2
+  number_of_contrib_muts_to_select: 10 # {int}; default: 10
+  cosmic_signatures_of_interest: !r c(NULL) # char vector or NULL
+  pheat_cutree_rows: 3 # integer or NULL
+  standard_cosmic_signature_subsets: !r c(NULL) # char vector or NULL
+  # info_table_cluster_categories: !r c(NULL) # vector or null
+  # info_table_cluster_categories_colors: !r list(NULL) # list or NULL
+  info_table_cluster_categories: !r c(NULL) # vector or null. Each item must exactly match a column name in the input info table.
+  info_table_cluster_categories_colors: !r list(NULL) # list or NULL
+  
+  # MULTISPECIES OPTIONS ----------------------------------------
+  isMultispp: no # {yes|no}; default: no
+  species: "mouse" # string: {"mouse",human}; or c("mouse", "human") if multispecies. 'species' must be a variable in the input info table with each observation having the value "mouse" or "human'.
+  numOfDenovoMouseSigsToExtract: 2 # {int}; default: 2
+  numOfDenovoHumanSigsToExtract: 2 # {int}; default: 2
+  numOfDenovoMultisppSigsToExtract: 2 # {int}; default: 2
+  info_table_cluster_categories_mouse: !r c(NULL) # vector or null
+  info_table_cluster_categories_colors_mouse: !r list(NULL) # list or NULL
+  info_table_cluster_categories_human: !r c(NULL) # vector or null
+  info_table_cluster_categories_colors_human: !r list(NULL) # list or NULL
+---
+
+# About
+
+This script takes a group of single nucleotide variant VCF files and uses the R/Bioconductor package [MutationalPatterns](https://www.bioconductor.org/packages/release/bioc/html/MutationalPatterns.html) to analyze their mutation spectra for de novo mutational signatures and perform signature reconstruction to find the optimal contribution combination of previously characterized signatures from the [Catalogue of Somatic Mutations in Cancer (COSMIC)](https://cancer.sanger.ac.uk/cosmic/signatures/SBS/).
+
+## I/O
+
+Inputs:
+- an TSV info table containing the following mandatory columns/variables (other variables can be added for categorical analysis):
+	- `absolute_filepath`
+	- `file_rootname`
+	- `sample_name`
+- the COSMIC v3 signatures trinucleotide probabilities matrix in CSV format (custom formatted to fit this script)
+
+Output
+
+
+## TODO
+
+- [x] change how many samples' 96-mutation profiles to plot (e.g. if you are analyzing a lot of samples)
+- [ ] TODO: output additional NMF sig profiles where y-axis scale is free based on the signature in addition to the one where all y-axes are the same scale
+- [ ] add param for nrun. ~10 for quick analysis, ~100-200 for robust analysis
+- [ ] add the NMF ranks to caption for de novo sig plots
+- [ ] make an adaptive list of mean NMF cos sims to keep adding to if you want to iterate on it and then you can plot mean cos sim vs. NMF rank to see how the reconstructions stack up.
+- [ ] calculate average cosine sim. and add to cos sim plots
+- [ ] TODO: rename output dirs to better organize output from each step:
+```
+- 01--mut spectra/
+- 02--mut profiles/
+	- mice/
+	- human/
+- 03--de novo NMF signatures/
+	- 01 - NMF rank estimates/
+	- 02 - de novo signatures/
+	- 03 - NMF sig reconstructions/
+	- 04 - NMF signature contributions/
+	- 05 - NMF sig contribution heatmaps/
+- 04 - COSMIC signatures/
+	- 01 - COSMIC signatures of interest/
+	- 02 - COSMIC sig reconstructions/
+	- 03 - COSMIC sig contributions/
+	- 04 - COSMIC sig contribution heatmaps/
+```
+- [ ] increase nrun for de novo rank estimation AND de novo sig extraction to avoid local minima. how large a dataset would need to be to requrie increasing this?
+- [ ] Which COSMIC signature profiles to plot
+
+## Things you may want to change
+
+- 
+
+# Setup
+
+1. Load packages
+2. Set the working directory (dir) for the .Rmd notebook (See: [R Markdown: The Definitive Guide, 3.2 Notebook, Working Directory](https://bookdown.org/yihui/rmarkdown/notebook.html))
+3. Create timestamped results output directories and set default dir to output chunk plots:
+
+```{r setup, results='hide'}
+# Load packages ########################################
+library(knitr)
+library(BSgenome)
+if (params$isMultispp) {
+
+	library(BSgenome.Mmusculus.UCSC.mm10)
+    refGenomeMouse = "BSgenome.Mmusculus.UCSC.mm10"
+
+    library(BSgenome.Hsapiens.UCSC.hg38)
+    refGenomeHuman = "BSgenome.Hsapiens.UCSC.hg38"
+
+} else if (params$species == "mouse") {
+
+	library(BSgenome.Mmusculus.UCSC.mm10)
+    ref_genome = "BSgenome.Mmusculus.UCSC.mm10"
+
+} else if (params$species == "human") {
+
+    library(BSgenome.Hsapiens.UCSC.hg38)
+    ref_genome = "BSgenome.Hsapiens.UCSC.hg38"
+
+}
+
+library(MutationalPatterns)
+library(NMF)
+library(gridExtra)
+library(pheatmap)
+library(extrafont)
+library(RColorBrewer)
+library(tidyverse)
+library(ggsci)
+library(ggthemes)
+
+# Set global knit options ###############################
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# ----
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+```
+
+
+```{r make output dirs}
+# make results dir
+if (!is.null(params[["out_optional_ID"]])) {
+    results_dir = paste0(params$output_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')),
+                         "--",
+                         if (exists("out_optional_ID", where = params)) {params$out_optional_ID})
+    dir.create(results_dir)
+} else {
+    results_dir = paste0(params$output_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(results_dir)
+}
+
+# Make dirs for tables and plots
+# TODO: revamp directories
+
+# old results dirs ----
+results_dir_tables = paste0(results_dir, "/tables")
+dir.create(results_dir_tables)
+
+results_dir_plots = paste0(results_dir, "/plots")
+dir.create(results_dir_plots)
+
+results_dir_plots_mutspectra = paste0(results_dir_plots, "/01--mut-spectra")
+dir.create(results_dir_plots_mutspectra)
+
+results_dir_plots_mutprofiles = paste0(results_dir_plots, "/02--mut-profiles")
+dir.create(results_dir_plots_mutprofiles)
+
+results_dir_plots_nmf = paste0(results_dir_plots, "/03--de-novo-NMF-signatures")
+dir.create(results_dir_plots_nmf)
+
+results_dir_plots_nmf_reconstruct = paste0(results_dir_plots_nmf, "/reconstruction-NMF")
+dir.create(results_dir_plots_nmf_reconstruct)
+
+results_dir_plots_cosmic = paste0(results_dir_plots, "/04--COSMIC-signatures")
+dir.create(results_dir_plots_cosmic)
+
+results_dir_plots_cosmic_reconstructions = paste0(results_dir_plots_cosmic, "/reconstruction-COSMIC")
+dir.create(results_dir_plots_cosmic_reconstructions)
+```
+
+```{r other setup}
+# Set global chunk options
+opts_chunk$set(
+	tidy.opts = list(width.cutoff = 60),
+	tidy = TRUE,
+	fig.path = paste0(results_dir, "/figures-Rmd/")# TODO: should I remove the trailing '/'?
+)
+
+# copy script to analysis folder for reproducibility
+file.copy(from = "/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd",
+          to = paste0(results_dir, "/02--mutation-signature-analysis.Rmd"),
+		  overwrite = T)
+
+```
+
+
+Source custom ggplot2 themes:
+
+```{r src ggplot themes}
+try(source("03--code/00--general/ggplot2-themes.R"))
+```
+
+Load input data
+
+```{r load data}
+# Load sample info table
+input_info_table = read_tsv(file = params$info_table, col_types = cols(.default = "c"))
+#View(input_info_table)
+str(input_info_table)
+```
+
+Define sample annotations for heatmaps and subset by species if indicated:
+
+```{r define annotations}
+# from input info table, define categorical annotations for plotting on pheatmaps
+# define categorical annotations
+if (exists("info_table_cluster_categories", where = params)) {
+	annotations = data.frame(
+	    input_info_table[,params$info_table_cluster_categories],
+	    row.names = input_info_table$sample_name
+	    )
+}
+
+# subset species-specific annotations if samples are multispp
+if (params$isMultispp) {
+	# subset mouse annotations if specified
+	if (exists("info_table_cluster_categories_mouse", where = params)) {
+		annotations_mouse = annotations %>%
+			# TODO: i had this wrongly set to "human" which is why I rewrote plotting the NMF heatmaps with `pheatmap()` directly, so maybe try to reimplement the custom function
+			filter(species == "mouse") %>%
+			select(any_of(params$info_table_cluster_categories_mouse))
+	}
+
+	# subset human annotations if specified
+	if (exists("info_table_cluster_categories_human", where = params)) {
+	annotations_human = annotations %>%
+		filter(species == "human") %>%
+		select(any_of(params$info_table_cluster_categories_human))
+	}
+
+	# set multispecies to default
+	annotations_multispp = annotations
+}
+
+# Specify annotation colors
+ann_colors = params$info_table_cluster_categories_colors
+# TODO: if multispp, do i need to dynamically subset annotation colors based on which factor levels are in the specified variables for each species?
+```
+
+# Introduction
+
+Adapted from *Introduction to MutationalPatterns* (Blokzijl et al. 2019)
+
+# Data
+
+## List reference genome
+
+List available genomes
+
+```{r list genomes}
+# NOTE: only need to do once to find which ref genome package to use
+# grep(pattern = params$reference_genome_symbol, x = available.genomes(), value = T)
+```
+
+~~Download and load reference genome of interest, and~~ assign the reference genome ***name*** to a variable, ***not*** the actual BSgenome object. `MutationalPatterns` functions take the ***name of the BSgenome object as a character string***, not the BSgenome object itself. (Desired reference genome already assigned in Rmd YAML front matter 'params', and reference BSgenome already loaded in '# Setup')
+
+```{r load reference genome}
+# library(params$reference_genome_BSgenome, character.only = T)
+# NOTE: incorporated in {setup}
+# ref_genome = params$reference_genome_BSgenome
+# ref_genome
+```
+
+## Load ~~example~~ sample data
+
+Load delimited list of VCF filepaths and other sample information
+
+```{r load vcfs}
+if (params$isMultispp) {
+
+	# extract the VCF filepaths for just the mouse samples
+	vcfFilesMouse = input_info_table %>%
+		filter(species == "mouse") %>%
+		pull(var = absolute_filepath)
+
+	# assign mouse sample names
+	sampleNamesMouse = input_info_table %>%
+		filter(species == "mouse") %>%
+		pull(var = sample_name)
+
+	# extract the VCF filepaths for just the human samples
+	vcfFilesHuman = input_info_table %>%
+		filter(species == "human") %>%
+		pull(var = absolute_filepath)
+
+	# assign human sample names
+	sampleNamesHuman = input_info_table %>%
+		filter(species == "human") %>%
+		pull(var = sample_name)
+} else {
+
+	vcf_files = as.character(input_info_table$absolute_filepath)
+	#View(vcf_files)
+	sample_names = as.character(input_info_table$sample_name)
+	#View(sample_names)
+
+}
+
+```
+
+Load VCFs into a `GRangesList` object:
+
+```{r vcfs to GRangesList}
+# only run if not iterating
+if (!params$is_iteration) {
+	if (params$isMultispp) {
+		# make GRangesList only for mouse samples
+		vcfsMouse = read_vcfs_as_granges(vcf_files = vcfFilesMouse,
+										 sample_names = sampleNamesMouse,
+										 genome = refGenomeMouse)
+	
+		summary(vcfsMouse)
+	
+		# make GRangesList only for human samples
+		vcfsHuman = read_vcfs_as_granges(vcf_files = vcfFilesHuman,
+										 sample_names = sampleNamesHuman,
+										 genome = refGenomeHuman)
+	
+		summary(vcfsHuman)
+	} else {
+		vcfs = read_vcfs_as_granges(vcf_files = vcf_files,
+									sample_names = sample_names,
+									genome = ref_genome)
+		summary(vcfs)
+	}
+}
+```
+
+Add reference genome contig lengths to VCFs (originally my VCFs didn't have this. ***Solved by Francis Blokzijl on Github***.
+
+```{r add contig lengths}
+if (params$isMultispp) {
+
+	# add contig lengths for mouse samples
+		# Get and store contig lengths
+		chrLengthsMouse = lengths(get(refGenomeMouse))
+
+		# Add chromosome names
+		names(chrLengthsMouse) = names(get(refGenomeMouse))
+
+		# Check which chromosomes are in your `vcfs` object
+		chrSelectMouse = names(seqlengths(vcfsMouse))
+
+		# Get lengths of these chromosomes from reference genome seq lengths and add them to your vcfs object. This fixes the problem with rainfall plot in section 6.1 not showing up
+		seqlengths(vcfsMouse) <- chrLengthsMouse[chrSelectMouse]
+
+	# add contig lengths for human samples
+		# Get and store contig lengths
+		chrLengthsHuman = lengths(get(refGenomeHuman))
+
+		# Add chromosome names
+		names(chrLengthsHuman) = names(get(refGenomeHuman))
+
+		# Check which chromosomes are in your `vcfs` object
+		chrSelectHuman = names(seqlengths(vcfsHuman))
+
+		# Get lengths of these chromosomes from reference genome seq lengths and add them to your vcfs object. This fixes the problem with rainfall plot in section 6.1 not showing up
+		seqlengths(vcfsHuman) <- chrLengthsHuman[chrSelectHuman]
+
+} else {
+
+	# Get and store contig lengths
+	chr_lengths = lengths(get(ref_genome))
+
+	# Add chromosome names
+	names(chr_lengths) = names(get(ref_genome))
+
+	# Check which chromosomes are in your `vcfs` object
+	chr_select = names(seqlengths(vcfs))
+
+	# Get lengths of these chromosomes from reference genome seq lengths and add them to your vcfs object. This fixes the problem with rainfall plot in section 6.1 not showing up
+	seqlengths(vcfs) <- chr_lengths[chr_select]
+
+}
+```
+
+# Mutation characteristics
+
+## Base substitution types
+
+Retrieve base substitutions from the VCF GRanges object as `REF>ALT` using `mutations_from_vcf`
+
+```{r muts from vcf}
+if (params$isMultispp) {
+
+	# mouse
+	mutsMouse = mutations_from_vcf(vcfsMouse[[1]])
+	head(mutsMouse, 12)
+
+	# human
+	mutsHuman = mutations_from_vcf(vcfsHuman[[1]])
+	head(mutsHuman, 12)
+
+} else {
+
+	# get mutations from vcfs
+	muts = mutations_from_vcf(vcfs[[1]])
+	head(muts, 12)
+
+}
+```
+
+Retrieve the base substitutions from the VCF GRanges object and convert them to the 6 types of conventional base substitutions (C>A, C>G, C>T, T>A, T>C, T>G):
+
+```{r mut types}
+if (params$isMultispp) {
+
+	# mouse
+	typesMouse = mut_type(vcfsMouse[[1]])
+	head(typesMouse)
+
+	# human
+	typesHuman = mut_type(vcfsHuman[[1]])
+	head(typesHuman)
+
+} else {
+
+	# get mutation types
+	types = mut_type(vcfs[[1]])
+	head(types)
+}
+```
+
+Retrieve the trinucleotide mutation sequence contexts of the base substitutions in the VCF object from the reference genome with `mut_context`
+
+```{r mut context}
+if (params$isMultispp) {
+
+	# mouse
+	contextMouse = mut_context(vcfsMouse[[1]], refGenomeMouse)
+	head(contextMouse, 12)
+
+	# human
+	contextHuman = mut_context(vcfsHuman[[1]], refGenomeHuman)
+	head(contextHuman, 12)
+
+} else {
+
+	# get trinucleotide contexts for mutations
+	context = mut_context(vcfs[[1]], ref_genome)
+	head(context, 12)
+
+}
+```
+
+Get the types and contexts for all positions in the VCF GRanges object with `type_context`. For bases substitutions that are converted to the 6 conventional base subsitution types, the reverse complement is returned.
+
+```{r type context}
+if (params$isMultispp) {
+
+	# mouse
+	typeContextMouse = type_context(vcfsMouse[[1]], refGenomeMouse)
+	lapply(typeContextMouse, head, 12)
+
+	# human
+	typeContextHuman = type_context(vcfsHuman[[1]], refGenomeHuman)
+	lapply(typeContextHuman, head, 12)
+
+} else {
+
+	# get types for trinucleotide contexts
+	type_context = type_context(vcfs[[1]], ref_genome)
+	lapply(type_context, head, 12)
+
+}
+```
+
+Count mutation type occurrences for all VCF objects in the GRangesList with `mut_type_occurrences`. For C>T mutations, a distinction is made between C>T at CpG sites and other sites, as deamination of methylated cytosine at CpG sites is a common mutational process. For this reason, the reference genome is needed for this functionality.
+
+```{r type occur}
+if (params$isMultispp) {
+
+	# mouse
+	typeOccurrencesMouse = mut_type_occurrences(vcfsMouse, refGenomeMouse)
+	typeOccurrencesMouse
+
+		# Save as table
+		write_tsv(x = typeOccurrencesMouse, path = paste0(results_dir_tables, "/01--mutationTypeOccurrences-mouse.tsv"))
+
+	# human
+	typeOccurrencesHuman = mut_type_occurrences(vcfsHuman, refGenomeHuman)
+	typeOccurrencesHuman
+
+		# Save as table
+		write_tsv(x = typeOccurrencesHuman, path = paste0(results_dir_tables, "/01--mutationTypeOccurrences-human.tsv"))
+
+} else {
+	# count the occurrences of the mutation types and also export to table
+	type_occurrences = mut_type_occurrences(vcfs, ref_genome)
+	type_occurrences
+
+	# Save as table
+	write_tsv(x = type_occurrences, path = paste0(results_dir_tables, "/01--mutation-type-occurrences.tsv"))
+
+}
+```
+
+## Mutation spectrum
+
+Plot the mean relative contribution of each of the 6 base substitution types over all samples. Error bars indicate standard deviation over all samples. Total number of mutations is indicated.
+
+```{r plot spec}
+if (params$isMultispp) {
+
+	# mouse
+	p1Mouse = plot_spectrum(typeOccurrencesMouse) +
+		labs(title = "Mutation Spectrum: Mouse Samples")
+	print(p1Mouse)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/01--mutSpectrum-mouse.pdf"),
+		   height = 4, width = 4)
+
+	# human
+	p1Human = plot_spectrum(typeOccurrencesHuman) +
+		labs(title = "Mutation Spectrum: Human Samples")
+	print(p1Human)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/01--mutSpectrum-human.pdf"),
+		   height = 4, width = 4)
+
+} else {
+
+	p1 = plot_spectrum(type_occurrences)
+	print(p1)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/01--mut-spectrum.pdf"),
+		   height = 4, width = 4)
+
+}
+```
+
+
+```{r plot spec CpG}
+if (params$isMultispp) {
+
+	# mouse
+	p2Mouse = plot_spectrum(typeOccurrencesMouse, CT = T) +
+		labs(title = "Mutation Spectrum: Mouse Samples",
+			 subtitle = "with CpG distinction")
+	print(p2Mouse)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/02--mutSpectrumCpG-mouse.pdf"),
+		   height = 4, width = 4)
+
+	# human
+	p2Human = plot_spectrum(typeOccurrencesHuman, CT = T) +
+		labs(title = "Mutation Spectrum: Human Samples",
+			 subtitle = "with CpG distinction")
+	print(p2Human)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/02--mutSpectrumCpG-human.pdf"),
+		   height = 4, width = 4)
+
+} else {
+
+	# With distinction between C>T at CpG sites
+	p2 = plot_spectrum(type_occurrences, CT = T)
+	p2
+	# save fig
+	ggsave(filename = paste0(results_dir_plots_mutspectra, "/02--mut-spectrum-CpG.pdf"),
+		   height = 4, width = 4)
+
+}
+```
+
+Combine multiple plots with `gridExtra`
+
+```{r plot multi spec}
+if (params$isMultispp) {
+
+	grid.arrange(p1Mouse, p2Mouse, p1Human, p2Human)
+
+	# save fig
+	pdf(file = paste0(results_dir_plots_mutspectra, "/03--mutSpectrumCombo.pdf"))
+	grid.arrange(p1Mouse, p2Mouse, p1Human, p2Human)
+	dev.off()
+
+} else {
+
+	grid.arrange(p1, p2)
+
+	# save fig
+	pdf(file = paste0(results_dir_plots_mutspectra, "/03--mut-spectrum-combo.pdf"))
+	grid.arrange(p1, p2)
+	dev.off()
+
+}
+```
+
+Plot spectrum without legend
+
+Facet the per sample group from desired columns of other metadata, e.g. tissue
+
+Define your own colors for spectrum plotting
+
+## 96 mutational profile
+
+Make a 96 trinucleotide mutation count matrix
+
+```{r 96 mut matrix}
+if (params$isMultispp) {
+
+	# mouse
+	mutMatMouse = mut_matrix(vcf_list = vcfsMouse,
+	                     ref_genome = refGenomeMouse)
+
+	# save mut_mat as a TSV
+	write_tsv(as_tibble(mutMatMouse, rownames = "trinucleotide context"), path = paste0(results_dir_tables, "/02--trintMutMatrix-mouse.tsv"))
+
+	# human
+	mutMatHuman = mut_matrix(vcf_list = vcfsHuman,
+	                     ref_genome = refGenomeHuman)
+
+	# save mut_mat as a TSV
+	write_tsv(as_tibble(mutMatHuman, rownames = "trinucleotide context"), path = paste0(results_dir_tables, "/02--trintMutMatrix-human.tsv"))
+
+	# combine both species into one mut mat
+	mutMatMultispp = cbind(mutMatMouse, mutMatHuman)
+	# also set as general mut_mat for use by some chunks
+	mut_mat = mutMatMultispp
+} else {
+	mut_mat = mut_matrix(vcf_list = vcfs,
+	                     ref_genome = ref_genome)
+	# head(mut_mat) # too many sample names
+	# mut_mat[1:2, 1:2]
+
+	# save mut_mat as a TSV
+	write_tsv(as_tibble(mut_mat, rownames = "trinucleotide context"), path = paste0(results_dir_tables, "/02--trinuc-mut-matrix.tsv"))
+
+}
+```
+
+Make heatmap of trinucleotide mutation matrix
+
+```{r}
+# TODO:
+```
+
+Plot the 96 profile of 5 arbitrary samples, e.g. samples 1, 3, 4, and 500.
+
+```{r plot 96 profile, include=FALSE, results='hide', fig.show=FALSE, }
+# Define function to plot 96 mutation profiles while taking into account the max peak value for the y-axis
+plot96ProfileCustom = function(mut_mat, sampleName = NULL) {
+
+	# calculate appropriate ymax scale
+		# get column sums for total # muts in each sample
+		mut_mat_colsums = colSums(mut_mat)
+
+		# init an empty list to hold mutation proportions for each sample
+		mut_mat_ratio_list = list()
+
+		# for every sample's colSum:
+		for (i in 1:length(mut_mat_colsums)) {
+			# get the ratio of every mutation type to the sum of all muts in that sample and add it to a list as a 1-col tibble
+			mut_mat_ratio_list[i] = tibble(mut_mat[,i] / mut_mat_colsums[i])
+		}
+
+		# from the list of tibbles of each samples mut ratios, get the max value in each sample, then get the max value of all samples
+		ymax_plot_mut_profiles = max(sapply(X = mut_mat_ratio_list, FUN = function(x) max(x)))
+		# round and add some buffer area to the ymax value
+		ymax_plot_mut_profiles = round(ymax_plot_mut_profiles + 0.05, digits = 1)
+
+	# plot mut profiles of all samples (with same y scale)
+	print(
+		plot_96_profile(mut_mat,
+		                # ymax = ymax_nmf_plot + (0.2*ymax_nmf_plot))
+		                ymax = ymax_plot_mut_profiles) +
+			labs(subtitle = sampleName)
+	)
+}
+
+if (params$isMultispp) {
+	# mouse
+	for (i in 1:ncol(mutMatMouse)) {
+		plot96ProfileCustom(mut_mat = mutMatMouse[, i, drop = F],
+							sampleName = colnames(mutMatMouse[, i, drop = F]))
+		# save plot for sample
+		ggsave(
+			filename = paste0(results_dir_plots_mutprofiles,
+								 "/04--96MutProfile-mouse--",
+								 colnames(mutMatMouse[, i, drop = F]),
+								 ".pdf"),
+			width = 12,
+			height = 2,
+			limitsize = F
+		)
+	}
+
+	# human
+	for (i in 1:ncol(mutMatHuman)) {
+		plot96ProfileCustom(mut_mat = mutMatHuman[, i, drop = F],
+							sampleName = colnames(mutMatHuman[, i, drop = F]))
+		# save plot for sample
+		ggsave(
+			filename = paste0(results_dir_plots_mutprofiles,
+								 "/04--96MutProfile-human--",
+								 colnames(mutMatHuman[, i, drop = F]),
+								 ".pdf"),
+			width = 12,
+			height = 2,
+			limitsize = F
+		)
+	}
+
+} else {
+	# do it for the general mut_mat
+	for (i in 1:ncol(mut_mat)) {
+		plot96ProfileCustom(mut_mat = mut_mat[, i, drop = F],
+							sampleName = colnames(mut_mat[, i, drop = F]))
+		# save plot for sample
+		ggsave(
+			filename = paste0(results_dir_plots_mutprofiles,
+								 "/04--96MutProfile--",
+								 colnames(mut_mat[, i, drop = F]),
+								 ".pdf"),
+			width = 12,
+			height = 2,
+			limitsize = F
+		)
+	}
+
+	plot96ProfileCustom(mut_mat = mut_mat)
+	# save fig
+	ggsave(filename = paste0(results_dir_plots,
+	                         "/04--96MutProfiles.pdf"),
+	       width = 12,
+	       height = 1 * ncol(mut_mat) + (0.2 * colnames(mut_mat) %>% str_length() %>% max()),
+	       limitsize = F)
+
+}
+```
+
+# Mutational signatures
+
+## *De novo* mutational signature extraction using NMF
+
+Extract de novo mutation signatures using NMF if `r params$extract_denovo_sigs == TRUE`
+
+Add a small pesudocount to the mutation count matrix
+
+```{r psudocount}
+if (params$isMultispp) {
+
+	# mouse
+	mutMatMouse = mutMatMouse + 0.001
+
+	# mouse
+	mutMatHuman = mutMatHuman + 0.001
+
+	# multispecies
+	mutMatMultispp = mutMatMultispp + 0.001
+	# also reassign to general mut_mat for some processes
+	mut_mat = mutMatMultispp
+
+} else {
+
+	mut_mat = mut_mat + 0.001
+
+}
+```
+
+Notes on NMF parameters (Gajoux, 2018, *An Introduction to NMF Package*):
+
+On deciding on the factorization rank:
+
+> A critical parameter in NMF is the factorization rank r. It deﬁnes the number of metagenes used to approximate the target matrix. Given a NMF method and the target matrix, a common way of deciding on r is to try diﬀerent values, compute some quality measure of the results, and choose the best value according to this quality criteria.
+
+> Several approaches have then been proposed to choose the optimal value of r. For example, (Brunet 2004) proposed to ***take the ﬁrst value of r for which the cophenetic coefficient starts decreasing,*** (Hutchins 2008) suggested to ***choose the ﬁrst value where the RSS curve presents an inﬂection point***, and (Frigyesi 2008) considered ***the smallest value at which the decrease in the RSS is lower than the decrease of the RSS obtained from random data***.
+
+On deciding the value for nrun for multiple runs:
+
+> When the seeding method is stochastic, multiple runs are usually required to achieve stability or a resonable result. This can be done by setting argument nrun to the desired value. For performance reason we use nrun=5 here, but a typical choice would lies between 100 and 200:
+
+Use the NMF package to generate an estimate rank plot:
+
+```{r estimate rank}
+# run only if de novo sigs is indicated and if not an iteration because this only needs to be run once per sample set
+if (params$extract_denovo_sigs & !(params$is_iteration)) {
+	if (params$isMultispp) {
+		# mouse
+	    if (ncol(mutMatMouse) >= 3) {
+		    # NOTE: errors if rank length is more than the number of samples
+			# estimate ranks up to a maximum of 12 or the number of samples, whichever is lower, due to extremely long runtimes for marginal benefit
+		    estimateMouse = nmf(mutMatMouse,
+		    					rank = if (ncol(mutMatMouse) <= 15) {
+		    						2:ncol(mutMatMouse)
+		    					} else {
+		    						2:15
+		    					},
+		    					method = "brunet",
+		    					nrun = params$extract_and_fit_nrun,
+		    					seed = 123456) # default
+	    }
+
+		# human
+	    if (ncol(mutMatHuman) >= 3) {
+		    estimateHuman = nmf(mutMatHuman,
+		    					rank = if (ncol(mutMatHuman) <= 15) {
+		    						2:ncol(mutMatHuman)
+		    					} else {
+		    						2:15
+		    					},
+		    					method = "brunet",
+		    					nrun = params$extract_and_fit_nrun,
+		    					seed = 123456) # default
+	    }
+
+		# multispecies
+	    if (ncol(mutMatMultispp) >= 3) {
+		    estimateMultispp = nmf(mutMatMultispp,
+		    					rank = if (ncol(mutMatMultispp) <= 15) {
+		    						2:ncol(mutMatMultispp)
+		    					} else {
+		    						2:15
+		    					},
+		    					   method = "brunet",
+		    					   nrun = params$extract_and_fit_nrun,
+		    					   seed = 123456) # default
+	    }
+	} else {
+	    if (ncol(mut_mat) >= 3) {
+	    	estimate = nmf(mut_mat,
+		    					rank = if (ncol(mut_mat) <= 15) {
+		    						2:ncol(mut_mat)
+		    					} else {
+		    						2:15
+		    					},
+	    				   method = "brunet",
+	    				   nrun = params$extract_and_fit_nrun,
+	    				   seed = 123456) # default
+	    }
+	}
+}
+```
+
+And plot it:
+
+```{r plot est}
+if (params$extract_denovo_sigs == TRUE) {
+	if (params$isMultispp) {
+
+		# mouse
+		if (exists("estimateMouse")) {
+		    print(plot(estimateMouse,
+		    		   main = "NMF Rank Survey (Mouse)"))
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/05--NMFRankEstimate-mouse.pdf"),
+		    	   height = 6,
+		    	   width = 12)
+		}
+
+		# human
+		if (exists("estimateHuman")) {
+		    print(plot(estimateHuman,
+		    		   main = "NMF Rank Survey (Human)"))
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/05--NMFRankEstimate-human.pdf"),
+		    	   height = 6,
+		    	   width = 12)
+		}
+
+		# multispecies
+		if (exists("estimateMultispp")) {
+		    print(plot(estimateMultispp,
+		    		   main = "NMF Rank Survey (Multispecies)"))
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/05--NMFRankEstimate-Multispp.pdf"),
+		    	   height = 6,
+		    	   width = 12)
+		}
+
+	} else {
+
+	    print(plot(estimate))
+	    # save fig
+	    ggsave(filename = paste0(results_dir_plots_nmf,
+	    						 "/05--NMF-rank-estimate.pdf"),
+	    	   height = 6,
+	    	   width = 12)
+	    #View(estimate)
+
+	}
+}
+```
+
+Extract signatures based on the chosen factorization rank according to results from the NMF rank survey:
+
+```{r sig extract NMF}
+if (params$extract_denovo_sigs == TRUE) {
+
+	if (params$isMultispp) {
+		# mouse
+		if (exists("estimateMouse")) {
+	    	deNovoNMFResMouse = extract_signatures(mutMatMouse,
+	    										   rank = params$numOfDenovoMouseSigsToExtract,
+	    										   nrun = params$extract_and_fit_nrun) # default
+		}
+
+		# human
+		if (exists("estimateHuman")) {
+	    	deNovoNMFResHuman = extract_signatures(mutMatHuman,
+	    										   rank = params$numOfDenovoHumanSigsToExtract,
+	    										   nrun = params$extract_and_fit_nrun) # default
+		}
+
+		# Multispp
+		if (exists("estimateMultispp")) {
+	    	deNovoNMFResMultispp = extract_signatures(mutMatMultispp,
+	    											  rank = params$numOfDenovoMultisppSigsToExtract,
+	    											  nrun = params$extract_and_fit_nrun) # default
+		}
+
+	} else {
+	    # TODO: automatically analyze the best rank by analyzing the values in 'estimate' e.g. when cophenetic begins to drop ||OR|| split script into pre-NMF and post-NMF to allow for changing extraction rank based on intermediate results of NMF estimate?
+	    # Extract signatures based on qualitative analysis of rank estimate
+	    # FIXME: generalize rank selection based on the previous estimate
+	    de_novo_nmf_res = extract_signatures(mut_mat, rank = params$num_of_denovo_sigs_to_extract, nrun = params$extract_and_fit_nrun) # default
+	    # de_novo_nmf_res = extract_signatures(mut_mat, rank = 3, nrun = 200)  # in former script
+	}
+}
+```
+
+Plot the 96 profile of the signatures
+
+```{r plot denovo sigs}
+if (params$extract_denovo_sigs == TRUE) {
+	if (params$isMultispp) {
+
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+			# plot with adjusted y-axes
+			plot96ProfileCustom(deNovoNMFResMouse$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Mouse)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-mouse-adaptive.pdf"),
+		           height = (1.2*ncol(deNovoNMFResMouse$signatures)),
+		           width = 12)
+			# plot with default y-axes
+			plot_96_profile(deNovoNMFResMouse$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Mouse)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-mouse-standard.pdf"),
+		           height = (1.2*ncol(deNovoNMFResMouse$signatures)),
+		           width = 12)
+		}
+
+		# human
+		if (exists("deNovoNMFResHuman")) {
+			plot96ProfileCustom(deNovoNMFResHuman$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Human)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-human-adaptive.pdf"),
+		           height = (1.2*ncol(deNovoNMFResHuman$signatures)),
+		           width = 12)
+
+			plot_96_profile(deNovoNMFResHuman$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Human)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-human-standard.pdf"),
+		           height = (1.2*ncol(deNovoNMFResHuman$signatures)),
+		           width = 12)
+		}
+
+		# Multispp
+		if (exists("deNovoNMFResMultispp")) {
+			plot96ProfileCustom(deNovoNMFResMultispp$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Multispecies)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-Multispp-adaptive.pdf"),
+		           height = (1.2*ncol(deNovoNMFResMultispp$signatures)),
+		           width = 12)
+
+		    plot_96_profile(deNovoNMFResMultispp$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF (Multispecies)")
+			# save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-Multispp-standard.pdf"),
+		           height = (1.2*ncol(deNovoNMFResMultispp$signatures)),
+		           width = 12)
+		}
+
+	} else {
+	    plot96ProfileCustom(de_novo_nmf_res$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF")
+	    # save fig
+	    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-adaptive.pdf"),
+	           height = (1.2*ncol(de_novo_nmf_res$signatures)),
+	           width = 12)
+
+	    plot_96_profile(de_novo_nmf_res$signatures) +
+				labs(title = "De Novo Mutation Signatures via NMF")
+	    # save fig
+	    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-standard.pdf"),
+	           height = (1.2*ncol(de_novo_nmf_res$signatures)),
+	           width = 12)
+	}
+}
+```
+
+Visualize the contribution of the signatures in a barplot
+
+```{r plot denovo contrib}
+# define condensed function to plot contributions
+plotContributionCustom = function(nmfResults, mode = "relative", subtitle = NULL) {
+	plot_contribution(nmfResults$contribution,
+					  nmfResults$signature,
+					  mode = mode) +
+		theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+		# scale_fill_brewer(palette = "Set1") +
+		# scale_fill_viridis_d() +
+		scale_fill_manual(values = c("#b6c6e3", "#b1ce95", "#4d73bd", "black"),
+						  name = "NMF Signature",
+						  breaks = c("1", "2", "3", "4"),
+						  labels = c("28-like", "14-like", "10b-like", "?")) + # for seminar fig
+		labs(title = paste0((if (mode == "relative") "Relative " else if (mode == "absolute") "Absolute "),
+							"Mutation Contribution of NMF Signatures"),
+			 subtitle = subtitle)
+}
+
+if (params$extract_denovo_sigs == TRUE) {
+	if (params$isMultispp) {
+
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+
+		    # Plot relative contribution
+		    pc1Mouse = plotContributionCustom(deNovoNMFResMouse,
+		    								  mode = "relative",
+		    								  subtitle = "Mouse samples")
+		    print(pc1Mouse)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.01--deNovoNMFSigsRelContrib-mouse.pdf"),
+		           height = 12,
+		           width = (8+ 0.2 * ncol(deNovoNMFResMouse$contribution)),
+		           limitsize = F)
+
+		    # Plot absolute contribution
+		    pc2Mouse = plotContributionCustom(deNovoNMFResMouse,
+		    								  mode = "absolute",
+		    								  subtitle = "Mouse samples")
+		    print(pc2Mouse)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.02--deNovoNMFSigsAbsContrib-mouse.pdf"),
+		           height = 12,
+		           width = (8 + 0.2 * ncol(deNovoNMFResMouse$contribution)),
+		           limitsize = F)
+
+		    # Combine both plots
+		    grid.arrange(pc1Mouse, pc2Mouse)
+		    # save fig
+		    pdf(file = paste0(results_dir_plots_nmf,
+		    				  "/07.03--deNovoNMFSigsContrib-mouse.pdf"),
+		        height = 12,
+		        width = (8 + 0.2 * ncol(deNovoNMFResMouse$contribution)))
+		    print(grid.arrange(pc1Mouse, pc2Mouse))
+		    dev.off()
+		}
+
+		# human
+		if (exists("deNovoNMFResHuman")) {
+
+		    # Plot relative contribution
+		    pc1Human = plotContributionCustom(deNovoNMFResHuman,
+		    								  mode = "relative",
+		    								  subtitle = "Human samples")
+		    print(pc1Human)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.01--deNovoNMFSigsRelContrib-human.pdf"),
+		           height = 12,
+		           width = (8 + 0.2 * ncol(deNovoNMFResHuman$contribution)),
+		           limitsize = F)
+
+		    # Plot absolute contribution
+		    pc2Human = plotContributionCustom(deNovoNMFResHuman,
+		    								  mode = "absolute",
+		    								  subtitle = "Human samples")
+		    print(pc2Human)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.02--deNovoNMFSigsAbsContrib-human.pdf"),
+		           height = 12,
+		           width = (8 + 0.2 * ncol(deNovoNMFResHuman$contribution)),
+		           limitsize = F)
+
+		    # Combine both plots
+		    grid.arrange(pc1Human, pc2Human)
+		    # save fig
+		    pdf(file = paste0(results_dir_plots_nmf,
+		    				  "/07.03--deNovoNMFSigsContrib-human.pdf"),
+		        height = 12,
+		        width = (8 + 0.2 * ncol(deNovoNMFResHuman$contribution)))
+		    print(grid.arrange(pc1Human, pc2Human))
+		    dev.off()
+		}
+
+		# Multispp
+		if (exists("deNovoNMFResMultispp")) {
+		    # Plot relative contribution
+		    pc1Multispp = plotContributionCustom(deNovoNMFResMultispp,
+		    								  mode = "relative",
+		    								  subtitle = "Human & mouse samples")
+		    print(pc1Multispp)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.01--deNovoNMFSigsRelContrib-multispp.pdf"),
+		           height = 12,
+		           width = (8+ 0.2 * ncol(deNovoNMFResMultispp$contribution)),
+		           limitsize = F)
+
+		    # Plot absolute contribution
+		    pc2Multispp = plotContributionCustom(deNovoNMFResMultispp,
+		    								  mode = "absolute",
+		    								  subtitle = "Human & mouse samples")
+		    print(pc2Multispp)
+		    # save fig
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/07.02--deNovoNMFSigsAbsContrib-multispp.pdf"),
+		           height = 12,
+		           width = (8 + 0.2 * ncol(deNovoNMFResMultispp$contribution)),
+		           limitsize = F)
+
+		    # Combine both plots
+		    grid.arrange(pc1Multispp, pc2Multispp)
+		    # save fig
+		    pdf(file = paste0(results_dir_plots_nmf,
+		    				  "/07.03--deNovoNMFSigsContrib-multispp.pdf"),
+		        height = 12,
+		        width = (8 + 0.2 * ncol(deNovoNMFResMultispp$contribution)))
+		    print(grid.arrange(pc1Multispp, pc2Multispp))
+		    dev.off()
+		}
+	} else {
+	    # Plot relative contribution
+		pc1 = plotContributionCustom(nmfResults = de_novo_nmf_res, mode = "relative")
+	    print(pc1)
+	    # save fig
+	    ggsave(filename = paste0(results_dir_plots_nmf, "/07.01--de-novo-NMF-sigs-rel-contrib.pdf"),
+	           height = 12,
+	           width = (8+ 0.2 * ncol(de_novo_nmf_res$contribution)),
+	           limitsize = F)
+
+	    # Plot absolute contribution
+		pc2 = plotContributionCustom(nmfResults = de_novo_nmf_res, mode = "absolute")
+	    print(pc2)
+	    # save fig
+	    ggsave(filename = paste0(results_dir_plots_nmf, "/7.02--de-novo-NMF-sigs-abs-contrib.pdf"),
+	           height = 12,
+	           width = (8 + 0.2 * ncol(de_novo_nmf_res$contribution)),
+	           limitsize = F)
+
+	    # Combine both plots
+	    grid.arrange(pc1, pc2)
+	    # save fig
+	    pdf(file = paste0(results_dir_plots_nmf, "/7.03--de-novo-NMF-sigs-rel-abs-contribs.pdf"),
+	        height = 8,
+	        width = (6 + 0.2 * ncol(de_novo_nmf_res$contribution)))
+	    print(grid.arrange(pc1, pc2))
+	    dev.off()
+	}
+}
+
+```
+
+### Plot de novo signature contribution heatmap
+
+Normalize de novo NMF signatures contribution matrices:
+```{r norm nmf contrib mats}
+if (params$extract_denovo_sigs) {
+	# define function to make normalized contribution matrix
+	normalizeNMFResContributionMatrix = function(deNovoNMFResContribMatrix) {
+	    nmf_res_contrib = as_tibble(deNovoNMFResContribMatrix,
+	    							rownames = NA)
+	    nmf_res_contrib = t(nmf_res_contrib)
+	    nmf_res_contrib_norm = nmf_res_contrib/rowSums(nmf_res_contrib)
+	    colnames(nmf_res_contrib_norm) = as.character(1:ncol(nmf_res_contrib_norm))
+	    return(nmf_res_contrib_norm)
+	}
+	
+	# normalize matrices
+	if (params$isMultispp) {
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+			nmf_res_contrib_norm_mouse = normalizeNMFResContributionMatrix(deNovoNMFResMouse$contribution)
+		}
+	
+		# human
+		if (exists("deNovoNMFResHuman")) {
+			nmf_res_contrib_norm_human = normalizeNMFResContributionMatrix(deNovoNMFResHuman$contribution)
+		}
+	
+		# multispp
+		if (exists("deNovoNMFResMultispp")) {
+			 nmf_res_contrib_norm_multispp = normalizeNMFResContributionMatrix(deNovoNMFResMultispp$contribution)
+		}
+	} else {
+		nmf_res_contrib_norm = normalizeNMFResContributionMatrix(de_novo_nmf_res$contribution)
+	}
+}
+```
+
+Plot NMF signature contributions with `pheatmap`:
+
+```{r plot de novo pheatmap}
+# FIXME: multiple inline plots will not output at the same time. plot all at once at the end? new chunk just for plotting?
+
+if (params$extract_denovo_sigs == TRUE) {
+	if (params$isMultispp) {
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+			# save large heatmap
+			pheatmap(mat = nmf_res_contrib_norm_mouse,
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_mouse,
+					 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Mouse)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--mouse.pdf"),
+					 width = (6 +
+					 		 	1 * ncol(nmf_res_contrib_norm_mouse)),
+					 height = (6 +
+					 		  	0.1 * nrow(nmf_res_contrib_norm_mouse) +
+					 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+
+			# save small heatmap
+			pheatmap(mat = nmf_res_contrib_norm_mouse,
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_mouse,
+					 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Mouse)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 show_rownames = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--mouse.pdf"),
+					 width = (6 +
+			        		 	1 * ncol(nmf_res_contrib_norm_mouse)),
+					 height = (6 +
+			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+		}
+
+		# human
+		if (exists("deNovoNMFResHuman")) {
+			# save large heatmap
+			pheatmap(mat = nmf_res_contrib_norm_human,
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_human,
+					 annotation_colors = params$info_table_cluster_categories_colors_human,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Human)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--human.pdf"),
+					 width = (6 +
+					 		 	1 * ncol(nmf_res_contrib_norm_human)),
+					 height = (6 +
+					 		  	0.1 * nrow(nmf_res_contrib_norm_human) +
+					 		  	0.2 * length(params$info_table_cluster_categories_colors_human)))
+
+			# save small heatmap
+			pheatmap(mat = nmf_res_contrib_norm_human,
+					 # color = colorRampPalette(c("blue", "cyan", "white", "yellow", "red"))(100),
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_human,
+					 annotation_colors = params$info_table_cluster_categories_colors_human,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Human)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 show_rownames = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--human.pdf"),
+					 width = (6 +
+			        		 	1 * ncol(nmf_res_contrib_norm_human)),
+					 height = (6 +
+			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_human))))
+		}
+
+		# multispp
+		if (exists("deNovoNMFResMultispp")) {
+			# save large heatmap
+			pheatmap(mat = nmf_res_contrib_norm_multispp,
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_multispp,
+					 annotation_colors = params$info_table_cluster_categories_colors,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Multispecies)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--multispp.pdf"),
+					 width = (6 +
+					 		 	1 * ncol(nmf_res_contrib_norm_multispp)),
+					 height = (6 +
+					 		  	0.1 * nrow(nmf_res_contrib_norm_multispp) +
+					 		  	0.2 * length(params$info_table_cluster_categories_colors)))
+
+			# save small heatmap
+			pheatmap(mat = nmf_res_contrib_norm_multispp,
+					 # breaks = seq(from = 0, to = 1, by = 0.01),
+					 cluster_cols = F,
+					 annotation_row = annotations_multispp,
+					 annotation_colors = params$info_table_cluster_categories_colors,
+					 treeheight_row = 100,
+					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+	             			  "(Multispecies)"),
+					 angle_col = 90,
+					 display_numbers = F,
+					 show_rownames = F,
+					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--multispp.pdf"),
+					 # width = 6,
+					 # height = 6)
+					 width = (6 +
+			        		 	1 * ncol(nmf_res_contrib_norm_multispp)),
+					 height = (6 +
+			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+		}
+
+	# plot heatmap for single species data
+	} else {
+		# save large heatmap
+		pheatmap(mat = nmf_res_contrib_norm,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = annotations,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap.pdf"),
+				 width = (6 +
+				 		 	1 * ncol(nmf_res_contrib_norm)),
+				 height = (6 +
+				 		  	0.1 * nrow(nmf_res_contrib_norm) +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+	
+		# save small heatmap
+		pheatmap(mat = nmf_res_contrib_norm,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = annotations,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 show_rownames = F,
+				 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small.pdf"),
+				 width = (6 +
+				 		 	1 * ncol(nmf_res_contrib_norm)),
+				 height = (6 +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+	}
+}
+```
+
+Compare the reconstructed mutational profile with the original profile
+
+```{r plot denovo reconst, eval=FALSE, include=FALSE}
+# define custom function for plotting original v. reconstructed profiles
+plotCompareProfilesCustom = function(mutMat, index = 1, deNovoNMFRes) {
+	plot_compare_profiles(mutMat[,index],
+						  deNovoNMFRes$reconstructed[,index],
+						  profile_names = c("Original", "Reconstructed")) +
+		# FIXME: can't add title without overwriting cosSim and RSS
+		# labs(title = "Difference in Original vs. Signature-Reconstructed Mutation Profiles",
+		labs(subtitle = paste0(colnames(mutMat)[index]))
+}
+
+if (params$extract_denovo_sigs == TRUE) {
+	if (params$isMultispp) {
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+			for (i in 1:ncol(mutMatMouse)) {
+				print(
+					plotCompareProfilesCustom(mutMatMouse, i, deNovoNMFResMouse)
+				)
+					# save plot
+					ggsave(filename = paste0(results_dir_plots_nmf_reconstruct,
+											 "/11--originalVReconstructedNMF--mouse-",
+											 colnames(mutMatMouse)[i],
+											 ".pdf"))
+			}
+		}
+
+		# human
+		if (exists("deNovoNMFResHuman")) {
+			for (i in 1:ncol(mutMatHuman)) {
+				print(
+					plotCompareProfilesCustom(mutMatHuman, i, deNovoNMFResHuman)
+				)
+					# save plot
+					ggsave(filename = paste0(results_dir_plots_nmf_reconstruct,
+											 "/11--originalVReconstructedNMF--human-",
+											 colnames(mutMatHuman)[i],
+											 ".pdf"))
+			}
+		}
+
+		# multispp
+		if (exists("deNovoNMFResMultispp")) {
+			for (i in 1:ncol(mutMatMultispp)) {
+				print(
+					plotCompareProfilesCustom(mutMatMultispp, i, deNovoNMFResMultispp)
+				)
+					# save plot
+					ggsave(filename = paste0(results_dir_plots_nmf_reconstruct,
+											 "/11--originalVReconstructedNMF--multispp-",
+											 colnames(mutMatMultispp)[i],
+											 ".pdf"))
+			}
+		}
+	} else {
+		for (i in 1:ncol(mut_mat)) {
+			print(
+				plotCompareProfilesCustom(mut_mat, i, de_novo_nmf_res)
+			)
+				# save plot
+				ggsave(filename = paste0(results_dir_plots_nmf_reconstruct,
+										 "/11--originalVReconstructedNMF--",
+										 params$species,
+										 colnames(mut_mat)[i],
+										 ".pdf"))
+		}
+	}
+}
+```
+
+***Adapted from COSMIC signature reconstruction section***
+
+Calculate cosine similarity between all original and reconstructed mutational profile with `cos_sim_matrix`:
+
+```{r de novo cos sim}
+# define function to calc cosine similarities
+calcCosineSimilarities = function(mut_mat, de_novo_nmf_res, species = NULL) {
+	# Calculate all pairwise cosine similarities
+    cos_sim_denovo_ori_rec = cos_sim_matrix(mut_mat, de_novo_nmf_res$reconstructed)
+
+    # Extract cosine similarities per sample between original and reconstructed
+    cos_sim_denovo_ori_rec = as.data.frame(diag(cos_sim_denovo_ori_rec))
+
+    # Adjust data frame for plotting with ggplot
+    colnames(cos_sim_denovo_ori_rec) = "cos_sim"
+    cos_sim_denovo_ori_rec$sample = row.names(cos_sim_denovo_ori_rec)
+
+    # Summary stats on cos_sim
+    summary(cos_sim_denovo_ori_rec$cos_sim)
+
+    # assign cosine sims if multispp
+    if (params$isMultispp) {
+	    if (species == "mouse") {
+	    	assign(x = "cosSimDeNovoOrigReconMouse", value = cos_sim_denovo_ori_rec, envir = .GlobalEnv)
+	    } else if (species == "human") {
+	    	assign(x = "cosSimDeNovoOrigReconHuman", value = cos_sim_denovo_ori_rec, envir = .GlobalEnv)
+	    } else if (species == "multispp") {
+	    	# add species factor to table for plot fill
+	    	cos_sim_denovo_ori_rec = left_join(x = cos_sim_denovo_ori_rec,
+	    			  y = (input_info_table %>%
+	    			  	 	select(sample_name, species) %>%
+	    			  	 	mutate(species = factor(species))),
+	    			  by = c("sample" = "sample_name"))
+	
+	    	assign(x = "cosSimDeNovoOrigReconMultispp", value = cos_sim_denovo_ori_rec, envir = .GlobalEnv)
+	    }
+    } else {
+    	# assign general value
+		assign(x = "cos_sim_denovo_ori_rec", value = cos_sim_denovo_ori_rec, envir = .GlobalEnv)
+    }
+}
+
+# calculate cosine similarities of de novo NMF signature reconstructions for all samples
+if (params$extract_denovo_sigs) {
+	if (params$isMultispp) {
+		# mouse
+		if (exists("deNovoNMFResMouse")) {
+			calcCosineSimilarities(mut_mat = mutMatMouse,
+								   de_novo_nmf_res = deNovoNMFResMouse,
+								   species = "mouse")
+			cosSimDeNovoOrigReconMouse_mean = mean(cosSimDeNovoOrigReconMouse$cos_sim)
+		}
+		
+		# human
+		if (exists("deNovoNMFResHuman")) {
+			calcCosineSimilarities(mut_mat = mutMatHuman,
+								   de_novo_nmf_res = deNovoNMFResHuman,
+								   species = "human")
+			cosSimDeNovoOrigReconHuman_mean = mean(cosSimDeNovoOrigReconHuman$cos_sim)
+		}
+		
+		# multispp
+		if (exists("deNovoNMFResMultispp")) {
+			calcCosineSimilarities(mut_mat = mutMatMultispp,
+								   de_novo_nmf_res = deNovoNMFResMultispp,
+								   species = "multispp")
+			cosSimDeNovoOrigReconMultispp_mean = mean(cosSimDeNovoOrigReconMultispp$cos_sim)
+		}
+	} else {
+		calcCosineSimilarities(mut_mat, de_novo_nmf_res)
+	}
+}
+
+```
+
+Use ggplot2 to make a barplot of the cosine similarities between the original and reconstructed mutational profile of each sample
+
+```{r plot de novo cos sim}
+# define custom function to plot colplot of cos sims
+plotCosSim = function(cos_sim_denovo_ori_rec, speciesSubtitle = NULL) {
+	# define base plot and whether or not to fill by species
+	if (is.null(cos_sim_denovo_ori_rec$species)) {
+		pCosSim = ggplot(cos_sim_denovo_ori_rec) +
+			aes(x = sample, y = cos_sim) +
+			geom_bar(stat = "identity", color = "black", fill = "gray")
+	} else {
+		pCosSim = ggplot(cos_sim_denovo_ori_rec) +
+			aes(x = sample, y = cos_sim, fill = species) +
+			geom_bar(stat = "identity", color = "black")
+	}
+
+	# add plot elements
+	pCosSim +
+		labs(title = "Cosine Similarities of De Novo NMF Signature Reconstruction",
+			 subtitle = speciesSubtitle,
+			 y = "Cosine Similarity") +
+		theme_bw() +
+		theme(panel.grid.minor.y = element_blank(),
+			  panel.grid.major.y = element_blank(),
+			  axis.text.x = element_text(hjust = 1, angle = 90)) +
+		# add cut off line
+		geom_hline(aes(yintercept = 0.95))
+}
+
+# plot cosine similarity plots
+if (params$extract_denovo_sigs) {
+	if (params$isMultispp) {
+		# mouse
+		if (exists("cosSimDeNovoOrigReconMouse")) {
+			print(plotCosSim(cosSimDeNovoOrigReconMouse, speciesSubtitle = "Mouse") +
+				  	coord_flip())
+		    # Save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/13--deNovoCosSim-mouse.pdf"),
+		           height = 6 + (0.1 * nrow(cosSimDeNovoOrigReconMouse)),
+		           width = 6,
+		           limitsize = F)
+		}
+
+		# human
+		if (exists("cosSimDeNovoOrigReconHuman")) {
+			print(plotCosSim(cosSimDeNovoOrigReconHuman, speciesSubtitle = "Human") +
+				  	coord_flip())
+		    # Save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/13--deNovoCosSim-human.pdf"),
+		           height = 6 + (0.1 * nrow(cosSimDeNovoOrigReconHuman)),
+		           width = 6,
+		           limitsize = F)
+		}
+
+		# multispp
+		if (exists("cosSimDeNovoOrigReconMultispp")) {
+			print(plotCosSim(cosSimDeNovoOrigReconMultispp, "Multispecies") +
+				  	coord_flip())
+		    # Save plot
+		    ggsave(filename = paste0(results_dir_plots_nmf,
+		    						 "/13--deNovoCosSim-multispp.pdf"),
+		           height = 6 + (.1 * nrow(cosSimDeNovoOrigReconMultispp)),
+		           width = 6,
+		           limitsize = F)
+		}
+	} else {
+		print(plotCosSim(cos_sim_denovo_ori_rec, "Multispecies") +
+			  	coord_flip())
+		    	# Save plot
+		    	ggsave(filename = paste0(results_dir_plots_nmf,
+		    							 "/13--deNovoCosSim.pdf"),
+		    		   height = 6 + (0.1 * nrow(cos_sim_denovo_ori_rec)),
+		    		   width = 6,
+		    		   limitsize = F)
+	}
+}
+```
+
+## Find optimal contribution of known signatures
+
+### COSMIC mutational signatures
+
+Download the [COSMIC v3 mutation signatures](https://cancer.sanger.ac.uk/cosmic/signatures/SBS/) in table format and reformat them to the format `MutationalPatterns` uses in the introductory guide when describing how to download the COSMIC v2 signatures data table.
+
+Load either the full COSMICv3 signatures or a subset that excludes purported artifactual signatures
+
+```{r load COSMIC signatures}
+# Old - for COSMICv2:
+# Download mutational signatures from COSMIC website:
+# sp_url = paste("https://cancer.sanger.ac.uk/cancergenome/assets/",
+#                "signatures_probabilities.txt",
+#                sep = "")
+# cosmicv3_sigs_no_arts = read.table(sp_url, sep = "\t", header = T)
+
+# Read in COSMICv3 sigs table
+cancer_signatures = read.csv(params$cosmic_signatures, header = T)
+
+# Match order of mutation types to MutationalPatterns standard
+new_order = match(row.names(mut_mat), cancer_signatures$Somatic.Mutation.Type)
+
+# Reorder cancer signatures dataframe
+cancer_signatures = cancer_signatures[as.vector(new_order),]
+
+# Add trinucleotide changes as row.names
+row.names(cancer_signatures) = cancer_signatures$Somatic.Mutation.Type
+
+# Keep only 96 contributions of the signatures in the matrix
+cancer_signatures = as.matrix(cancer_signatures[,4:52])
+
+cancer_signatures[1:6, 1:6]
+```
+
+Plot all specified COSMIC signatures of interest in a single plot
+
+```{r plot all COSMIC sigs}
+if ((exists("cosmic_signatures_of_interest", where = params))) {
+
+    # from the master COSMIC matrix, extract only sigs of interest into a new matrix
+    cancer_signatures_of_interest = cancer_signatures[, params$cosmic_signatures_of_interest]
+
+    # plot all sigs of interest (with same y scale)
+    plot_96_profile(
+        cancer_signatures_of_interest
+        # cancer_signatures_of_interest,
+        # ymax = round(max(cancer_signatures_of_interest) / max(colSums(cancer_signatures_of_interest)), digits = 1)
+    )
+    ggsave(filename = paste0(results_dir_plots_cosmic,
+                             "/14--96-mut-profile-all-sigs-of-interest.pdf"),
+           width = 12,
+           height = 2 * ncol(cancer_signatures_of_interest),
+           limitsize = F)
+}
+```
+
+Hierarchically cluster the COSMIC signatures based on their similarity with average linkage
+***[Currently disabled to reduce clutter]***
+
+```{r plot COSMIC sig cluster}
+# # cluster signatures
+# hclust_cosmic = cluster_signatures(cancer_signatures, method = "average")
+#
+# # Store signatures in new order
+# cosmic_order = colnames(cancer_signatures)[hclust_cosmic$order]
+#
+# # plot COSMIC signature cluster
+# plot(hclust_cosmic)
+# # save fig
+# pdf(file = paste0(results_dir_plots, "/15--cluster-COSMIC-sigs.pdf"), width = 12, height = 12)
+# plot(hclust_cosmic)
+# dev.off()
+```
+
+### Similarity between mutational profiles and COSMIC signatures [DISABLED: SEMI-REDUNDANT INFO]
+
+Calculate the cosine similarity between a sample mutation matrix and one COSMIC signature. In this case, Signature 10a:
+
+```{r single COSMIC cos sim}
+# if ((exists("cosmic_signatures_of_interest", where = params))) {
+#     # TODO: implement dynamic comparison using input list of specific samples
+#     cos_sim(mut_mat[,1],
+#             # select 1st element of list of sigs of interest
+#             cancer_signatures_of_interest[,colnames(cancer_signatures_of_interest)[1]])
+# }
+```
+
+Calculate pairwise cosine similarity between the samples' mutation spectra and COSMIC signatures:
+
+```{r calc COSMIC pairwise cos sim}
+# # calculate cosine similarities
+# if (params$isMultispp) {
+# 	# mouse
+# 	if (exists("mutMatMouse")) {
+# 		cosSimMouseSamplesVCOSMIC = cos_sim_matrix(mutMatMouse, cancer_signatures)
+# 	}
+#
+# 	# human
+# 	if (exists("mutMatHuman")) {
+# 		cosSimHumanSamplesVCOSMIC = cos_sim_matrix(mutMatHuman, cancer_signatures)
+# 	}
+#
+# 	# multispp
+# 	if (exists("mutMatMultispp")) {
+# 		cosSimMultisppSamplesVCOSMIC = cos_sim_matrix(mutMatMultispp, cancer_signatures)
+# 	}
+# } else {
+# 	cos_sim_samples_signatures = cos_sim_matrix(mut_mat, cancer_signatures)
+# }
+```
+
+Plot the cosine similarities to COSMIC signatures in a heatmap:
+
+```{r plot COSMIC pairwise cos sim}
+# # define function to plot COSMIC pairwise cos sim heatmap
+# plotCOSMICCosSimHeatmap = function(speciesName, cos_sim_samples_signatures) {
+# 	# save pheatmap fig
+# 	pdf(file = paste0(results_dir_plots,
+# 	                  "/16--sample-COSMIC-pairwise-cosSim-heat",
+# 					  ifelse(test = !is.null(speciesName),
+# 					  	   yes = paste0("--", speciesName),
+# 					  	   no = NULL),
+# 					  ".pdf"),
+# 	    width = 12,
+# 	    height = 4 + 0.2 * nrow(cos_sim_samples_signatures))
+# 	# FIXME: pheatmap wont include cluster_row option if the following else code would come first:
+# 	if (nrow(cos_sim_samples_signatures >= 2)) {
+# 		pheatmap(mat = cos_sim_samples_signatures,
+# 		         cluster_cols = F, cluster_rows = T,
+# 				 main = paste0("Samplewise Cosine Similarity\nvs. Known COSMIC Mutation Signatures",
+# 				 			  ifelse(test = !is.null(speciesName),
+# 				 			  	   yes = paste0("\n", speciesName),
+# 				 			  	   no = NULL)))
+# 	} else {
+# 		pheatmap(mat = cos_sim_samples_signatures,
+# 		         cluster_rows = F,
+# 		         cluster_cols = F,
+# 				 main = "Samplewise Cosine Similarity\nvs. Known COSMIC Mutation Signatures")
+# 	}
+# 	dev.off()
+# 	# plot heatmap
+# 	# FIXME: plotting pheatmap before saving to PDF produces a corrupt PDF...
+# 	if (nrow(cos_sim_samples_signatures >= 2)) {
+# 		pheatmap(mat = cos_sim_samples_signatures,
+# 		         cluster_cols = F, cluster_rows = T,
+# 				 main = paste0("Samplewise Cosine Similarity\nvs. Known COSMIC Mutation Signatures",
+# 				 			  ifelse(test = !is.null(speciesName),
+# 				 			  	   yes = paste0("\n", speciesName),
+# 				 			  	   no = NULL)))
+# 	} else {
+# 		pheatmap(mat = cos_sim_samples_signatures,
+# 		         cluster_rows = F,
+# 		         cluster_cols = F,
+# 				 main = "Samplewise Cosine Similarity\nvs. Known COSMIC Mutation Signatures")
+# 	}
+# }
+#
+# if (params$isMultispp) {
+# 	# mouse
+# 	if (exists("cosSimMouseSamplesVCOSMIC") & nrow(cosSimMouseSamplesVCOSMIC >= 2)) {
+# 		plotCOSMICCosSimHeatmap(speciesName = "mouse",
+# 								cos_sim_samples_signatures = cosSimMouseSamplesVCOSMIC)
+# 	}
+#
+# 	# human
+# 	if (exists("cosSimHumanSamplesVCOSMIC")) {
+# 		plotCOSMICCosSimHeatmap(speciesName = "human",
+# 								cos_sim_samples_signatures = cosSimHumanSamplesVCOSMIC)
+# 	}
+#
+# 	# multispp
+# 	if (exists("cosSimMultisppSamplesVCOSMIC")) {
+# 		plotCOSMICCosSimHeatmap(speciesName = "multispp",
+# 								cos_sim_samples_signatures = cosSimMultisppSamplesVCOSMIC)
+# 	}
+# } else {
+# 	plotCOSMICCosSimHeatmap(cos_sim_samples_signatures = cos_sim_samples_signatures)
+# }
+```
+
+### Find optimal contribution of COSMIC signatures to reconstruct 96 mutational profiles
+
+Fit mutation matrix to the COSMIC mutational signatures:
+
+```{r fit COSMIC sig}
+if (params$isMultispp) {
+	# mouse
+	if (exists("mutMatMouse")) {
+		fitResMouse = fit_to_signatures(mutMatMouse, cancer_signatures)
+	}
+
+	# human
+	if (exists("mutMatHuman")) {
+		fitResHuman = fit_to_signatures(mutMatHuman, cancer_signatures)
+	}
+
+	# multispp
+	if (exists("mutMatMultispp")) {
+		fitResMultispp = fit_to_signatures(mutMatMultispp, cancer_signatures)
+		fit_res = fitResMultispp
+	}
+} else {
+	fit_res = fit_to_signatures(mut_mat, cancer_signatures)
+}
+```
+
+Plot the optimal contribution of the COSMIC signatures in each sample as a stacked barplot.
+***[DISABLED: LESS USEFUL THAN DESC STATS PLOT]***
+```{r plot cosmic contributions}
+# # define function to select contributing mutations and plot the numbers
+#
+#
+# # TODO: implement selection of & ordering by particular sets of mut sigs defined in params
+#
+# # calculate distribution of how many mutations each signature contributes across all samples
+# contribution_rowsums = tibble(signature = factor(rownames(fit_res$contribution),
+#                                                  levels = rownames(fit_res$contribution)),
+#                               total_contribution = rowSums(fit_res$contribution))
+# # print values
+# contribution_rowsums
+# # plot barplot
+# ggplot(contribution_rowsums, aes(x = signature,
+#                        y = total_contribution)) +
+#     geom_col() +
+#     theme_light() +
+#     theme(axis.text.x = element_text(angle = 90))
+# # save plot
+# ggsave(filename = paste0(results_dir_plots, "/16.50--total-mut-contrib-by-COSMIC-sig.pdf"),
+#        height = 6,
+#        width = 8)
+```
+
+Select COSMIC signatures that contribute at least the desired (as defined in `params`) number of mutations across all samples:
+```{r select cosmic contributions}
+if (params$isMultispp) {
+	# mouse
+	if (exists("fitResMouse")) {
+		selectCtbSigsMouse = which(rowSums(fitResMouse$contribution) > params$number_of_contrib_muts_to_select)
+
+		# show all rows (signatures) that were selected
+		rownames(fitResMouse$contribution[selectCtbSigsMouse,])
+	}
+
+	# human
+	if (exists("fitResHuman")) {
+		selectCtbSigsHuman = which(rowSums(fitResHuman$contribution) > params$number_of_contrib_muts_to_select)
+
+		# show all rows (signatures) that were selected
+		rownames(fitResHuman$contribution[selectCtbSigsHuman,])
+	}
+
+	# multispp
+	if (exists("fitResMultispp")) {
+		selectCtbSigsMultispp = which(rowSums(fitResMultispp$contribution) > params$number_of_contrib_muts_to_select)
+		# assign to general variable for some processes
+		select = selectCtbSigsMultispp
+
+		# show all rows (signatures) that were selected
+		rownames(fitResMultispp$contribution[selectCtbSigsMultispp,])
+	}
+} else {
+	select = which(rowSums(fit_res$contribution) > params$number_of_contrib_muts_to_select)
+
+	# show all rows (signatures) that were selected
+	rownames(fit_res$contribution[select,])
+}
+
+# TODO: try other selection criteria
+	# # other selection criteria based on Temko 2019 [@2018TemkoSomaticPOLEexonuclease]: only select signatures that contribute a certain % of the total mutations across samples
+	# select_pct = which(rowSums(fit_res$contribution) >=
+	#                 (0.01 * sum(rowSums(fit_res$contribution))))
+	# rownames(fit_res$contribution[select_pct,])
+```
+
+Order specific COSMIC sigs of interest
+
+```{r order cosmic sigs of interest?, eval=FALSE, include=FALSE}
+# TODO: set colors for specific groups of COSMIC signatures
+# From former script
+    # For ordering and selecting specific sets of mut sigs
+    # # Consolidate to matrix with sample name
+    # fit_res_contrib_mat = as.matrix(fit_res$contribution[select, ])
+    # # Order by average contribution
+    # fit_res_contrib_mat = fit_res_contrib_mat[order(rowSums(fit_res_contrib_mat), decreasing = F), ]
+    # # Rearrange to put signatures of interest at top (POLE, MMR, APOBEC, combos)
+    # # Which relevant sigs are present in the contrib matrix:
+    # relevant_sigs_in_contrib = fit_res_contrib_mat[relevant_signatures[relevant_signatures %in% rownames(fit_res_contrib_mat)],]
+    # # Make vector of names of relvant sigs present in matrix
+    # relevant_sigs_in_contrib_names = rownames(relevant_sigs_in_contrib)
+    # # Move choice sigs to top of contrib matrix
+    # fit_res_contrib_mat = fit_res_contrib_mat[c(relevant_sigs_in_contrib_names, setdiff(rownames(fit_res_contrib_mat), relevant_sigs_in_contrib_names)),] # mat[c(select, setdiff(rownames(mat), select)),]
+    # # Select contrib mat rownames and reverse order
+    # rev_order_contrib_rownames = rev(rownames(fit_res_contrib_mat))
+    # fit_res_contrib_mat_rev = fit_res_contrib_mat[rev_order_contrib_rownames,]
+    # # Define custom color palette for main sigs present (some will be missing bc not in matrix)
+    #     # POLE sigs (10a, 10b, 28)
+    #     col_pole = brewer.pal(3, 'Blues')
+    #     # MMR sigs (6, 15, 26)
+    #     col_mmr = brewer.pal(3, 'Reds')
+    #     # Combo sigs (14)
+    #     col_combo = c('#b457b4') # purple
+    #     # APOBEC sigs (1, 84, 85)
+    #     col_apobec = brewer.pal(3, 'Oranges')
+    #     # Other relevant sigs ()
+    #         # None present in fit_res_contrib_mat_rev
+    #     # Colors for other present signatures
+    #     col_others = colorRampPalette(brewer.pal(9, 'Greys'))(20)
+    #     # Total custom color palette of 30 colors
+    #     color_palette_30 = c(col_others, col_apobec, col_mmr, col_combo, col_pole)
+```
+
+
+```{r def cosmic contrib bar function}
+# define custom function to plot COSMIC signature contributions
+plotCOSMICContributionCustom = function(fit_res, selectCtbSigs, speciesName = NULL) {
+	# plot relative contribution barplot
+	pc3 = plot_contribution(contribution = fit_res$contribution[selectCtbSigs,, drop = F],
+							signatures = cancer_signatures[,selectCtbSigs],
+							mode = "relative") +
+			labs(title = "Mutation Contribution of COSMIC Signatures (Relative)",
+				 subtitle = if (!is.null(speciesName)) {speciesName}) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1))
+	print(pc3)
+	# save fig
+	# FIXME: throwing error: 'Error in grid.newpage() : non-finite location and/or size for viewport'
+	ggsave(filename = paste0(results_dir_plots_cosmic,
+							 "/17--mutContribCOSMICRelative",
+							 if (!is.null(speciesName)) {paste0("--", speciesName)},
+							 ".pdf"),
+	       width = 4 + 0.2 * ncol(fit_res$contribution[selectCtbSigs,]),
+	       height = 6,
+	       limitsize = F)
+
+	# Plot absolute contribution barplot
+	pc4 = plot_contribution(fit_res$contribution[selectCtbSigs,, drop = F],
+	                        cancer_signatures[,selectCtbSigs],
+	                        mode = "absolute") +
+			labs(title = "Mutation Contribution of COSMIC Signatures (Absolute)",
+				 subtitle = if (!is.null(speciesName)) {speciesName}) +
+			theme(axis.text.x = element_text(angle = 90, hjust = 1))
+	print(pc4)
+	# save fig
+	# FIXME: throwing error: 'Error in grid.newpage() : non-finite location and/or size for viewport'
+	ggsave(filename = paste0(results_dir_plots_cosmic,
+							 "/17--mutContribCOSMICAbsolute",
+							 if (!is.null(speciesName)) {paste0("--", speciesName)},
+							 ".pdf"),
+	       width = 4 + 0.2 * ncol(fit_res$contribution[selectCtbSigs,]),
+	       height = 6,
+	       limitsize = F)
+
+	# FIXME: deosnt save correctly
+	# FIXME: just doesnt look nice. duplicate signature legend, etc.
+	# # combine both plots into grid
+	# pc3.4 = grid.arrange(pc3, pc4)
+	# print(pc3.4)
+	# # pc3.4
+	# # save grid figs
+	# pdf(file = paste0(results_dir_plots_cosmic,
+	# 						 "/17--mutContribCOSMICRel+Abs",
+	# 						 ifelse(test = !is.null(speciesName),
+	# 						 	   yes = paste0("--", speciesName),
+	# 						 	   no = NULL),
+	# 						 ".pdf"),
+	# 	# width = 4 + 0.2  * ncol(fit_res$contribution[selectCtbSigs,]),
+	# 	height = 12)
+	# print(pc3.4)
+	# dev.off()
+}
+```
+
+```{r plot cosmic contrib bar}
+# plot contributions
+if (params$isMultispp) {
+	# mouse
+	if (exists("fitResMouse")) {
+		plotCOSMICContributionCustom(fit_res = fitResMouse,
+									 selectCtbSigs = selectCtbSigsMouse,
+									 speciesName = "mouse")
+	}
+
+	# human
+	if (exists("fitResHuman")) {
+		plotCOSMICContributionCustom(fit_res = fitResHuman,
+									 selectCtbSigs = selectCtbSigsHuman,
+									 speciesName = "human")
+	}
+
+	# multispp
+	if (exists("fitResMultispp")) {
+		plotCOSMICContributionCustom(fit_res = fitResMultispp,
+									 selectCtbSigs = selectCtbSigsMultispp,
+									 speciesName = "multispecies")
+	}
+} else {
+	plotCOSMICContributionCustom(fit_res, select)
+}
+
+```
+
+Plot relative contribution of the cancer signatures in each sample as a heatmap with sample clustering
+
+Old plotting from `MutationalPatterns` -- use `pheatmap` instead
+
+```{r normalize cosmic sig contrib and export}
+# define function to normalize cosmic sig contrib
+normCOSMICSigCtb = function(fit_res, speciesName = NULL) {
+	# normalize COSMIC sigs contribution (adapted from plot_contribution_heatmap() function)
+	cosmic_res_contrib = as_tibble(fit_res$contribution,
+	                               rownames = NA)
+	cosmic_res_contrib = t(cosmic_res_contrib)
+	cosmic_res_contrib_norm = cosmic_res_contrib/rowSums(cosmic_res_contrib)
+
+	# assign variable to global env based on species name
+	if (is.null(speciesName)) {
+		assign(x = "cosmic_res_contrib_norm", cosmic_res_contrib_norm, envir = .GlobalEnv)
+	} else if (speciesName == "mouse") {
+		assign(x = "fitResCosmicCtbNormMouse", value = cosmic_res_contrib_norm, envir = .GlobalEnv)
+	} else if (speciesName == "human") {
+		assign(x = "fitResCosmicCtbNormHuman", value = cosmic_res_contrib_norm, envir = .GlobalEnv)
+	} else if (speciesName == "multispecies") {
+		assign(x = "fitResCosmicCtbNormMultispp", value = cosmic_res_contrib_norm, envir = .GlobalEnv)
+	}
+
+	# export to .tsv
+	write_tsv(x = as_tibble(cosmic_res_contrib_norm,
+							rownames = "sample_name"),
+	          path = paste0(results_dir_tables,
+	          			    "/03--COSMICCtbNorm",
+							if (!is.null(speciesName)) {paste0("--", speciesName)},
+	          			    ".tsv"))
+}
+
+# calc and export COSMIC sig contributions
+if (params$isMultispp) {
+	# mouse
+	if (exists("fitResMouse")) {
+		normCOSMICSigCtb(fitResMouse, "mouse")
+	}
+
+	# human
+	if (exists("fitResHuman")) {
+		normCOSMICSigCtb(fitResHuman, "human")
+	}
+
+	# multispp
+	if (exists("fitResMultispp")) {
+		normCOSMICSigCtb(fitResMultispp, "multispecies")
+	}
+} else {
+	normCOSMICSigCtb(fit_res)
+}
+
+```
+
+Plot COSMIC signature contribution heatmaps:
+
+```{r plot cosmic contrib heatmaps}
+# if multiple species, plot species-subset as well as combined COSMIC contribution heatmaps
+if (params$isMultispp) {
+	# mouse
+	if (exists("fitResCosmicCtbNormMouse")) {
+		# save large heatmap
+		pheatmap(mat = fitResCosmicCtbNormMouse,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations_mouse")) annotations_mouse,
+				 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Mouse)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap--mouse.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormMouse)),
+				 height = (6 +
+				 		  	0.1 * nrow(fitResCosmicCtbNormMouse) +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+
+		# save small heatmap
+		pheatmap(mat = fitResCosmicCtbNormMouse,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations_mouse")) annotations_mouse,
+				 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Mouse)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 show_rownames = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap-small--mouse.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormMouse)),
+				 height = (6 +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+	}
+	
+	# human
+	if (exists("fitResCosmicCtbNormHuman")) {
+		# save large heatmap
+		pheatmap(mat = fitResCosmicCtbNormHuman,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations_human")) annotations_human,
+				 annotation_colors = params$info_table_cluster_categories_colors_human,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Human)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap--human.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormHuman)),
+				 height = (6 +
+				 		  	0.1 * nrow(fitResCosmicCtbNormHuman) +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_human))))
+
+		# save small heatmap
+		pheatmap(mat = fitResCosmicCtbNormHuman,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations_human")) annotations_human,
+				 annotation_colors = params$info_table_cluster_categories_colors_human,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Human)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 show_rownames = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap-small--human.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormHuman)),
+				 height = (6 +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_human))))
+	}
+	
+	# multispp
+	if (exists("fitResCosmicCtbNormMultispp")) {
+		# save large heatmap
+		pheatmap(mat = fitResCosmicCtbNormMultispp,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations_multispp")) annotations_multispp,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Multispecies)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap--multispp.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormMultispp)),
+				 height = (6 +
+				 		  	0.1 * nrow(fitResCosmicCtbNormMultispp) +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+
+		# save small heatmap
+		pheatmap(mat = fitResCosmicCtbNormMultispp,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations")) annotations,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution\n",
+				 			  "(Multispecies)"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 show_rownames = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap-small--multispp.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(fitResCosmicCtbNormMultispp)),
+				 height = (6 +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+	}
+} else {
+	# plot default
+	if (exists("cosmic_res_contrib_norm")) {
+		# save large heatmap
+		pheatmap(mat = cosmic_res_contrib_norm,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations")) annotations,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(cosmic_res_contrib_norm)),
+				 height = (6 +
+				 		  	0.1 * nrow(cosmic_res_contrib_norm) +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+
+		# save small heatmap
+		pheatmap(mat = cosmic_res_contrib_norm,
+				 # breaks = seq(from = 0, to = 1, by = 0.01),
+				 cluster_cols = F,
+				 annotation_row = if(exists("annotations")) annotations,
+				 annotation_colors = params$info_table_cluster_categories_colors,
+				 treeheight_row = 100,
+				 main = paste0("Hierarchical Clustering of\nCOSMIC Mutation Signature Contribution"),
+				 angle_col = 90,
+				 display_numbers = F,
+				 show_rownames = F,
+				 filename = paste0(results_dir_plots_cosmic, "/19--COSMICContribHeatmap-small.pdf"),
+				 width = (6 +
+				 		 	0.2 * ncol(cosmic_res_contrib_norm)),
+				 height = (6 +
+				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+	}
+}
+```
+
+Compare the reconstructed mutational profile of a particular sample with its original mutational profile
+
+```{r plot compare profiles, eval=FALSE, include=FALSE}
+# define custom function for plotting original v. reconstructed profiles
+plotCompareCOSMICReconstrProfiles = function(mutMat, index = 1, fitResCOSMIC, speciesName = NULL) {
+	print(
+		plot_compare_profiles(mutMat[,index],
+							  fitResCOSMIC$reconstructed[,index],
+							  profile_names = c("Original", "Reconstructed")) +
+			# FIXME: can't add title without overwriting cosSim and RSS
+			# labs(title = "Difference in Original vs. Signature-Reconstructed Mutation Profiles",
+			labs(subtitle = paste0(colnames(mutMat)[index]))
+		# save plot
+	)
+	ggsave(
+		filename = paste0(
+			results_dir_plots_cosmic_reconstructions,
+			"/20--origVReconstrCOSMIC",
+			if (!is.null(speciesName)) {paste0("--", speciesName)},
+			"--", colnames(mutMat)[index],
+			".pdf"
+		)
+	)
+}
+
+# loop through all samples and plot reconstruction comparisons
+if (params$isMultispp) {
+	# mouse
+	if (exists("mutMatMouse") & exists("fitResMouse")) {
+		# for every mouse sample
+		for (i in 1:ncol(mutMatMouse)) {
+			print(
+				plotCompareCOSMICReconstrProfiles(mutMat = mutMatMouse,
+												  index = i,
+												  fitResCOSMIC = fitResMouse,
+												  speciesName = "mouse")
+			)
+		}
+	}
+
+	# human
+	if (exists("mutMatHuman") & exists("fitResHuman")) {
+		# for every mouse sample
+		for (i in 1:ncol(mutMatHuman)) {
+			print(
+				plotCompareCOSMICReconstrProfiles(mutMat = mutMatHuman,
+												  index = i,
+												  fitResCOSMIC = fitResHuman,
+												  speciesName = "human")
+			)
+		}
+	}
+
+	# Multispecies not needed because not de novo sigs - reconstructions are the same between sets bc COSMIC is independent
+	# # multispp
+	# if (exists("mutMatMultispp") & exists("fitResMultispp")) {
+	# 	# for every mouse sample
+	# 	for (i in 1:ncol(mutMatMultispp)) {
+	# 		print(
+	# 			plotCompareCOSMICReconstrProfiles(mutMat = mutMatMultispp,
+	# 											  index = i,
+	# 											  fitResCOSMIC = fitResMultispp,
+	# 											  speciesName = "multispp")
+	# 		)
+	# 	}
+	# }
+} else {
+	for (i in 1:ncol(mut_mat)) {
+		print(
+			plotCompareCOSMICReconstrProfiles(mutMat = mut_mat, index = i, fitResCOSMIC = fit_res)
+		)
+	}
+}
+```
+
+Calculate cosine similarity between all original and reconstructed mutational profile with `cos_sim_matrix`:
+
+```{r calc all sample-COSMIC reconstr cos sim}
+# define function to calculate pairwise cosine similarities
+calcCosmicCosSim = function(mut_mat, fit_res, speciesName = NULL) {
+	# Calculate all pairwise cosine similarities
+	cos_sim_cosmic_ori_rec = cos_sim_matrix(mut_mat, fit_res$reconstructed)
+
+	# Extract cosine similarities per sample between original and reconstructed
+	cos_sim_cosmic_ori_rec = as.data.frame(diag(cos_sim_cosmic_ori_rec))
+
+	# Adjust data frame for plotting with ggplot
+	colnames(cos_sim_cosmic_ori_rec) = "cos_sim"
+	cos_sim_cosmic_ori_rec$sample = row.names(cos_sim_cosmic_ori_rec)
+
+	# assign cos sim variables if multispp
+	if (params$isMultispp) {
+		if (speciesName == "mouse") {
+			assign(x = "cosSimCOSMICOrigReconMouse", value = cos_sim_cosmic_ori_rec, envir = .GlobalEnv)
+		} else if (speciesName == "human") {
+			assign(x = "cosSimCOSMICOrigReconHuman", value = cos_sim_cosmic_ori_rec, envir = .GlobalEnv)
+		} else if (speciesName == "multispp") {
+			# add species factor to table for plot fill
+			cos_sim_cosmic_ori_rec = left_join(x = cos_sim_cosmic_ori_rec,
+											   y = (input_info_table %>%
+											   	 	select(sample_name, species) %>%
+											   	 	mutate(species = factor(species))),
+											   by = c("sample" = "sample_name"))
+			
+			assign(x = "cosSimCOSMICOrigReconMultispp", value = cos_sim_cosmic_ori_rec, envir = .GlobalEnv)
+			# also assign to general variable for compatibility
+			assign(x = "cos_sim_cosmic_ori_rec", value = cos_sim_cosmic_ori_rec, envir = .GlobalEnv)
+		}
+	} else {
+		assign(x = "cos_sim_cosmic_ori_rec", value = cos_sim_cosmic_ori_rec, envir = .GlobalEnv)
+	}
+}
+	
+
+# calculate cosine similarities between original mutation profiles and COSMIC signature reconstructions
+if (params$isMultispp) {
+	# mouse
+	if (exists("fitResMouse")) {
+		calcCosmicCosSim(mut_mat = mutMatMouse,
+						 fit_res = fitResMouse,
+						 speciesName = "mouse")
+	}
+
+	# human
+	if (exists("fitResHuman")) {
+		calcCosmicCosSim(mut_mat = mutMatHuman,
+						 fit_res = fitResHuman,
+						 speciesName = "human")
+	}
+
+	# multispp
+	if (exists("fitResMultispp")) {
+		calcCosmicCosSim(mut_mat = mutMatMultispp,
+						 fit_res = fitResMultispp,
+						 speciesName = "multispp")
+	}
+} else {
+	# calc cosine sims for singular data
+	calcCosmicCosSim(mut_mat = mut_mat,
+					 fit_res = fit_res)
+}
+
+```
+
+Use ggplot2 to make a barplot of the cosine similarities between the original and reconstructed mutational profile of each sample
+
+```{r plot all sample-COSMIC cos sim}
+# define function to plot COSMIC cos sim for all species if present
+plotCosSimCOSMIC = function(cos_sim_cosmic_ori_rec, speciesName = NULL) {
+	# define base plot and whether or not to fill by species
+	if (!is.null(cos_sim_cosmic_ori_rec$species)) {
+		pCosSimCOSMIC = ggplot(cos_sim_cosmic_ori_rec) +
+			aes(x = sample, y = cos_sim, fill = species) +
+			geom_bar(stat = "identity", color = "black")
+	} else {
+		pCosSimCOSMIC = ggplot(cos_sim_cosmic_ori_rec) +
+			aes(x = sample, y = cos_sim) +
+			geom_bar(stat = "identity", color = "black")
+	}
+
+	# add plot elements
+	pCosSimCOSMIC = pCosSimCOSMIC +
+		labs(title = "Cosine Similarties Between Original Mutation Profiles\nand COSMIC Signature Reconstructions",
+			 subtitle = speciesName,
+			 y = "Cosine Similarity") +
+		theme_bw() +
+		theme(panel.grid.minor.y = element_blank(),
+			  panel.grid.major.y = element_blank(),
+			  axis.text.x = element_text(hjust = 1, angle = 90)) +
+		# add cut off line
+		geom_hline(aes(yintercept = 0.95))
+	print(pCosSimCOSMIC)
+
+	# save plot
+	ggsave(filename = paste0(results_dir_plots_cosmic,
+							 "/21--cosSimCOSMIC",
+							 if (!is.null(speciesName)) {paste0("--", speciesName)},
+							 ".pdf"),
+		   width = 6 + (0.2*nrow(cos_sim_cosmic_ori_rec)),
+		   limitsize = F)
+}
+
+# plot cosine similarities
+if (params$isMultispp) {
+	# mouse
+	if (exists("cosSimCOSMICOrigReconMouse")) {
+		plotCosSimCOSMIC(cos_sim_cosmic_ori_rec = cosSimCOSMICOrigReconMouse,
+							   speciesName = "mouse")
+	}
+
+	# human
+	if (exists("cosSimCOSMICOrigReconHuman")) {
+		plotCosSimCOSMIC(cos_sim_cosmic_ori_rec = cosSimCOSMICOrigReconHuman,
+							   speciesName = "human")
+	}
+
+	# multispp
+	if (exists("cosSimCOSMICOrigReconMultispp")) {
+		plotCosSimCOSMIC(cos_sim_cosmic_ori_rec = cosSimCOSMICOrigReconMultispp,
+							   speciesName = "multispp")
+	}
+} else {
+	# plot for generic data
+	plotCosSimCOSMIC(cos_sim_cosmic_ori_rec = cos_sim_cosmic_ori_rec)
+}
+```
+
+# Strand bias analyses
+
+## Transcriptional strand bias analysis
+
+## Replicative strand bias analysis
+
+## Extract signatures with strand bias
+
+# Genomic distribution
+
+## Rainfall plot
+
+## Enrichment or depletion of mutations in genomic regions
+
+### Example: regulation annotation data from Ensembl using *biomaRt*
+
+## Test for significant depletion or enrichment in genomic regions
+
+# Save Image
+
+Save all current session data to a file in the results folder. You can load this file back and inspect any analyses using the actual data that was produced.
+
+```{r}
+save.image(file = paste0(results_dir, "/env-data.RData"))
+```
+
+# Session Information
+
+```{r env, comment=NA}
+write_lines(capture.output(sessionInfo()), path = paste0(results_dir, "/env-info.txt"))
+```
+

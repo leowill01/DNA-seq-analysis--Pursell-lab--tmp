@@ -1,0 +1,275 @@
+---
+title: 'Get GDC VCF UUIDs, Case IDs, and Join with File/Base/Rootname Table'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 May 09
+  | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+params:
+  in_dirh_gdc_download_vcfs: '' # string: path to dir
+  out_dir: '' # string: path to dir
+  out_opt_id: NULL # string or NULL: optional text to include in results dir name
+  in_filebaserootname_table: ''
+---
+
+# About
+
+This script takes a dir of VCFs obtained from the Genomic Data Commons (GDC) and outputs a table with the VCF filename, the VCF UUID (which should be the basename of the VCF file), and matching GDC metadata for each GDC VCF file like TCGA case ID.
+
+# Setup
+
+```{r setup}
+# Load packages ----
+library(knitr)
+library(tidyverse)
+library(GenomicDataCommons)
+
+# Set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Set global chunk options ----
+# opts_chunk$set(
+# 	tidy.opts = list(width.cutoff = 60),
+# 	tidy = TRUE,
+# 	dev = "pdf",
+# 	fig.path = paste0(dir_results, "/figures-Rmd/")
+# )
+```
+
+```{r other setup}
+# make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+	# set results dir name
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')),
+                         if (exists("out_opt_id", where = params)) {paste0("--", params$out_opt_id)})
+    
+    # make results dir
+    dir.create(dir_results)
+} else {
+	# set simple results dir name
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    # create results dir
+    dir.create(dir_results)
+}
+
+# make results subdirs ----
+# dir_results_data = paste0(dir_results, "/data")
+# dir.create(dir_results_data)
+dir_results_tables = paste0(dir_results, "/tables")
+dir.create(dir_results_tables)
+# dir_results_plots = paste0(dir_results, "/plots")
+# dir.create(dir_results_plots)
+# dir_tmp = paste0(dir_results, "/tmp")
+# dir.create(dir_tmp)
+
+# export current script to results dir for reproducibility ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# export variables to shell environment ----
+Sys.setenv(
+	# results dirs and subdirs
+	dir_results = dir_results,
+	# dir_results_plots = dir_results_plots,
+	dir_results_tables = dir_results_tables,
+	# tmp dir
+	# dir_tmp = dir_tmp,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+```
+
+Load parameters as variables
+
+# Load data
+
+```{r get vcf filepaths}
+# read input dir of GDC VCFs
+in_dir_of_vcfs = params$in_dirh_gdc_download_vcfs
+in_dir_of_vcfs
+
+# make vector of absolute filepaths of all VCFs in input dir
+vcf_filepaths = dir(path = in_dir_of_vcfs,
+                           pattern = ".vcf.gz$",
+                           full.names = T,
+                           recursive = T)
+```
+
+Make a tibble to store all desired VCF info and metadata, and initialize it with the filepaths of the GDC VCFs in the input dir:
+
+```{r make data table}
+# make tibble with first column as the VCF filepaths
+gdc_data_table = tibble(vcf_filepath = vcf_filepaths)
+```
+
+Add a second column to the data table with the VCF file GDC UUIDs, which should be the VCF file basenames:
+
+```{r add UUIDs}
+gdc_data_table = gdc_data_table %>%
+    mutate(GDC_UUID = str_extract(vcf_filepath, "[:alnum:]{8}-[:alnum:]{4}-[:alnum:]{4}-[:alnum:]{4}-[:alnum:]{12}"))
+```
+
+# Get other GDC metadata from GDC VCF UUIDs
+
+Check GDC network status:
+
+```{r check GDC status}
+status()
+stopifnot(status()$status == "OK")
+```
+
+Initialize a GDCquery object with `files()`
+
+```{r make files query}
+fquery = files()
+fquery
+```
+
+View available fields to query:
+
+```{r select files fields}
+# list how many fields available
+length(available_fields("files"))
+# available_fields("files")
+
+# search within available fields
+grep_fields(entity = "files", pattern = "tissue")
+
+# select fields of interest
+
+```
+
+Select desired fields to query:
+
+```{r select query fields}
+# TODO: add param char vector for additional fields to retrieve in addition to default
+# FIXME:
+fquery_select = fquery %>%
+    select(c(
+    	"file_id", 
+    	"submitter_id", 
+    	"cases.submitter_id", 
+    	"cases.case_id", 
+    	# "analysis.submitter_id",
+    	# "analysis.workflow_type", 
+    	"cases.diagnoses.tissue_or_organ_of_origin"
+    ))
+summary(fquery_select)
+```
+
+Filter query fields for desired values:
+
+```{r filter query fields}
+fquery_filter = fquery_select %>%
+    filter(~ file_id %in% gdc_data_table[["GDC_UUID"]])
+summary(fquery_filter)
+```
+
+Return all query results:
+
+```{r get query results}
+fquery_res = fquery_filter %>%
+    results_all()
+
+# show summary of query results
+summary(fquery_res)
+
+# glimpse the structure of the GDCquery object
+# glimpse(fquery)
+```
+
+Iterate through query results and add each section to the data table:
+
+```{r convert query list to a nested df}
+# turn GDCquery into a tibble
+fquery_tib = as_tibble(fquery_res)
+glimpse(fquery_tib)
+```
+
+Unnest the converted df that contains lists and other dfs
+
+```{r unnest the df}
+# unnest the nested 'cases' fields - 'analysis' fields should have been unnested correctly with the previous conversion to a tibble since they're only 1 level deep
+fquery_tib_unnest = fquery_tib %>%
+	unnest(cols = cases, names_sep = ".") %>%
+	unnest(cols = cases.diagnoses)
+	# FIXME: how to properly unnest the nested analysis df
+	# unnest(cols = analysis)
+glimpse(fquery_tib_unnest)
+```
+
+Add broader tissue of origin categories:
+
+```{r condense tissue labels}
+# # fquery_tib_condensed = 
+# fquery_tib_unnest %>%
+# 	mutate(tissue_of_origin = case_when(
+# 		str_detect(tissue_or_organ_of_origin, "colon") ~ "colon"
+# 	))
+```
+
+Output a TCGA case ID:file UUID match table
+
+```{r}
+case_id_match_table = fquery_tib_unnest %>%
+	dplyr::select(
+		cases.submitter_id, 
+		# analysis.workflow_type, 
+		tissue_or_organ_of_origin,
+		file_id, 
+		submitter_id, 
+		cases.case_id, 
+		# analysis.submitter_id
+	)
+    # dplyr::select(TCGA_case_ID = cases.submitter_id, VCF_UUID = file_id)
+glimpse(case_id_match_table)
+
+write_tsv(x = case_id_match_table, path = paste0(dir_results_tables, "/case_id_UUID_table.tsv"))
+
+```
+
+# Join with FileBaseRootname table based on file rootname/GDC UUID
+
+Load file/base/rootname table
+
+```{r}
+tab_fbrnames = read_tsv(params$in_filebaserootname_table)
+glimpse(tab_fbrnames)
+```
+
+Join case ID-UUID table to fbrootnames table:
+
+```{r}
+combined_file_and_metadata_table = left_join(keep = T, 
+									 x = tab_fbrnames, 
+									 y = case_id_match_table, 
+									 by = c("file_rootname" = "file_id"))
+combined_file_and_metadata_table %>%
+		# tissue_or_organ_of_origin, 
+		# absolute_filepath, 
+		# file_basename, 
+		# file_rootname, 
+		# file_id, 
+		# everything())
+glimpse(combined_file_and_metadata_table)
+```
+
+save full filebaserootname and matched IDs table as TSV:
+
+```{r}
+write_tsv(x = tab_fbrnames_matched_IDs, 
+		  path = paste0(dir_results_tables,
+		  				"/combined-GDC-metadata-and-file-info.tsv"))
+```

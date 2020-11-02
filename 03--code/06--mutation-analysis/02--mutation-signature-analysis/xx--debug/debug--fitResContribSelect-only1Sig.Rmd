@@ -1,0 +1,31 @@
+```{r}
+plot_contribution
+```
+
+
+```{r}
+select
+str(select)
+
+select = c(20, 10, 43)
+names(select) = c("SBS3", "SBS8", "SBS39")
+select
+```
+
+
+
+```{r}
+test_contrib = fit_res$contribution[select,]
+test_contrib
+```
+
+```{r}
+m_test_contrib = melt(test_contrib)
+m_test_contrib
+```
+
+```{r}
+colnames(m_test_contrib) = c("Signature", "Sample", "Contribution")
+m_test_contrib
+```
+

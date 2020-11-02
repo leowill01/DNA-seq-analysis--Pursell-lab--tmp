@@ -1,0 +1,123 @@
+---
+title: 'Get metadata for GDC VCFs and move to working directory'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 10_Oct 16
+  | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+# output: 
+#   html_notebook: 
+#     toc: yes
+#     toc_float: yes
+params:
+  # REQUIRED ########################################
+  in_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/01--raw-data/02--external/NIH-GDC/POLE-related/2020-10-06--TCGA-all-CRC-UCEC/download' # string ; path to dir hierarchy containing GDC VCF files
+  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/01--raw-data/02--external/NIH-GDC/POLE-related/2020-10-06--TCGA-all-CRC-UCEC' # string ; path to dir where results dir will be made
+  copy_and_rename_working_files: no # boolean ; default=no ; whether or not VCF files should be renamed based on TCGA case ID and workflow and moved to a working directory for further analysis.
+  out_dir_working: '' # string ; path to working dir where renamed VCF files will be copied to
+  # OPTIONAL ########################################
+  out_opt_id: NULL # [NULL|string] ; default=NULL ; optional tag to append to name of results dir
+---
+
+# About
+
+This script takes as input a directory which a hierarchy that contains VCF files downloaded from the GDC using the `gdc-client download` tool, queries the GDC for metadata associated with the files, and copies and renames the VCFs to a working directory if indicated. The VCFs should have the files' UUIDs as the file rootnames as originally downloaded from the GDC.
+
+# Setup
+
+```{r setup, message=FALSE}
+# Load packages ----
+library(knitr)
+library(extrafont)
+library(RColorBrewer)
+library(tidyverse)
+
+# Set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Set global chunk options ----
+# opts_chunk$set(
+# 	tidy.opts = list(width.cutoff = 60),
+# 	tidy = TRUE,
+# 	dev = "pdf",
+# 	fig.path = paste0(dir_results, "/figures-Rmd/")
+# )
+```
+
+```{r other setup}
+# make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+	# set results dir name
+    dir_results = paste0(
+    	params$out_dir,
+    	"/results-GDC-metadata",
+    	as.character(format(Sys.time(),
+    						'--%Y-%m-%d-%H%M%S')),
+    	if (exists("out_optID", where = params)) {
+    		paste0("--",params$out_optID)
+    	}
+    )
+
+    # make results dir
+    dir.create(dir_results)
+} else {
+	# set simple results dir name
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    # create results dir
+    dir.create(dir_results)
+}
+
+# make results subdirs ----
+# dir_results_data = paste0(dir_results, "/data")
+# dir.create(dir_results_data)
+# dir_results_tables = paste0(dir_results, "/tables")
+# dir.create(dir_results_tables)
+# dir_results_plots = paste0(dir_results, "/plots")
+# dir.create(dir_results_plots)
+# dir_tmp = paste0(dir_results, "/tmp")
+# dir.create(dir_tmp)
+
+# export current script to results dir for reproducibility ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# export variables to shell environment ----
+Sys.setenv(
+	# results dirs and subdirs
+	dir_results = dir_results,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+```
+
+# Load Data
+
+# Transform Data
+
+## Get VCF [file\|base\|root]names
+
+```{bash}
+
+```
+
+# Analyze Data
+
+# Session Info
+
+```{r save session data}
+# save data image
+save.image(file = paste0(dir_results, "/data.Rdata"))
+
+# save session info
+write_lines(capture.output(sessionInfo()), 
+            path = paste0(dir_results, "/sessionInfo.txt"))
+```

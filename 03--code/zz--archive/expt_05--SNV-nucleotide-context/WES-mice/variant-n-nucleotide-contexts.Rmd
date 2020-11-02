@@ -1,0 +1,545 @@
+---
+title: "Nucleotide Contexts of POLE-mutant Tumor Variants"
+params:
+  vcf_m079: 04--analysis/expt_04--SNV-variant-annotation/mm10-reference-genome/m079/results/m079-tn-WES.snp.Somatic.hc.filter/m079-tn-WES.snp.Somatic.hc.filter.mm10_multianno.vcf
+  vcf_m084: 04--analysis/expt_04--SNV-variant-annotation/mm10-reference-genome/m084/results/m084-tn-WES.snp.Somatic.hc.filter/m084-tn-WES.snp.Somatic.hc.filter.mm10_multianno.vcf
+  vcf_m1098: 04--analysis/expt_04--SNV-variant-annotation/mm10-reference-genome/m1098/results/m1098-tn-WES.snp.Somatic.hc.filter/m1098-tn-WES.snp.Somatic.hc.filter.mm10_multianno.vcf
+  vcf_m122: 04--analysis/expt_04--SNV-variant-annotation/mm10-reference-genome/m122/results/m122-tn-WES.snp.Somatic.hc.filter/m122-tn-WES.snp.Somatic.hc.filter.mm10_multianno.vcf
+  vcf_m124: 04--analysis/expt_04--SNV-variant-annotation/mm10-reference-genome/m124/results/m124-tn-WES.snp.Somatic.hc.filter/m124-tn-WES.snp.Somatic.hc.filter.mm10_multianno.vcf
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+    toc_depth: 5
+  pdf_document:
+    toc: yes
+---
+    <!-- toc_float: yes -->
+
+# Setup
+
+```{r setup, results='hide'}
+# Load packages
+library(tidyverse)
+library(knitr)
+library(vcfR)
+library(BSgenome)
+library(BSgenome.Mmusculus.UCSC.mm10)
+library(gridExtra)
+
+# Set working directory
+opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+getwd()
+```
+
+# Load VCF data
+
+## Load & process VCF
+
+Load VCFs as a vcfR objects
+
+```{r}
+vcf_m079 = read.vcfR(file = params$vcf_m079)
+vcf_m079
+vcf_m084 = read.vcfR(file = params$vcf_m084)
+vcf_m084
+vcf_m122 = read.vcfR(file = params$vcf_m122)
+vcf_m122
+vcf_m124 = read.vcfR(file = params$vcf_m124)
+vcf_m124
+vcf_m1098 = read.vcfR(file = params$vcf_m1098)
+vcf_m1098
+```
+
+## Convert vcfR objects into tidy data
+
+```{r}
+vcf_m079_tidy = vcfR2tidy(vcf_m079)
+vcf_m079_tidy$fix
+vcf_m084_tidy = vcfR2tidy(vcf_m084)
+vcf_m084_tidy$fix
+vcf_m122_tidy = vcfR2tidy(vcf_m122)
+vcf_m122_tidy$fix
+vcf_m124_tidy = vcfR2tidy(vcf_m124)
+vcf_m124_tidy$fix
+vcf_m1098_tidy = vcfR2tidy(vcf_m1098)
+vcf_m1098_tidy$fix
+vcf_m079_tidy$gt
+```
+
+# Get pentanucleotide context for all variants
+
+## Load the reference genome as a BSgenome object
+
+```{r}
+mm10_genome = BSgenome.Mmusculus.UCSC.mm10
+mm10_genome
+```
+
+## Obtain the tri-, penta-, and icosanucleotide context from the reference genome using the tidy VCF data
+
+Take the tidy VCF data and use BSgenome `getSeq()` to get the pentanucleotide context for every variant. Use `mutate()` to turn this into a new column in the tibble.
+
+m079:
+
+```{r m079 context}
+m079_contexts = vcf_m079_tidy$fix %>% 
+	mutate(tri_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 1), 
+						  end=(POS + 1), 
+						  as.character=T)) %>% 
+	mutate(tri_context_2 = str_c(REF, ">", ALT, ":", tri_context)) %>% 
+	mutate(tri_context_3 = str_c(str_sub(tri_context, 1, 1), "[", REF, ">", ALT, "]", str_sub(tri_context, 3, 3))) %>% 
+	mutate(penta_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 2), 
+						  end=(POS + 2), 
+						  as.character=T)) %>% 
+	mutate(penta_context_2 = str_c(REF, ">", ALT, ":", penta_context)) %>% 
+	mutate(penta_context_3 = str_c(str_sub(penta_context, 1, 2), "[", REF, ">", ALT, "]", str_sub(penta_context, 4, 5))) %>% 
+	mutate(icosa_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 10), 
+						  end=(POS + 10), 
+						  as.character=T)) %>% 
+	mutate(icosa_context_2 = str_c(REF, ">", ALT, ":", icosa_context)) %>% 
+	mutate(icosa_context_3 = str_c(str_sub(icosa_context, 1, 10), "[", REF, ">", ALT, "]", str_sub(icosa_context, 12, 21))) %>% 
+	select(CHROM, POS, REF, ALT, tri_context, tri_context_2, tri_context_3, penta_context, penta_context_2, penta_context_3, icosa_context, icosa_context_2, icosa_context_3, everything())
+
+m079_contexts
+```
+
+m084:
+```{r m084 context}
+m084_contexts = vcf_m084_tidy$fix %>% 
+	mutate(tri_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 1), 
+						  end=(POS + 1), 
+						  as.character=T)) %>% 
+	mutate(tri_context_2 = str_c(REF, ">", ALT, ":", tri_context)) %>% 
+	mutate(tri_context_3 = str_c(str_sub(tri_context, 1, 1), "[", REF, ">", ALT, "]", str_sub(tri_context, 3, 3))) %>% 
+	mutate(penta_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 2), 
+						  end=(POS + 2), 
+						  as.character=T)) %>% 
+	mutate(penta_context_2 = str_c(REF, ">", ALT, ":", penta_context)) %>% 
+	mutate(penta_context_3 = str_c(str_sub(penta_context, 1, 2), "[", REF, ">", ALT, "]", str_sub(penta_context, 4, 5))) %>% 
+	mutate(icosa_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 10), 
+						  end=(POS + 10), 
+						  as.character=T)) %>% 
+	mutate(icosa_context_2 = str_c(REF, ">", ALT, ":", icosa_context)) %>% 
+	mutate(icosa_context_3 = str_c(str_sub(icosa_context, 1, 10), "[", REF, ">", ALT, "]", str_sub(icosa_context, 12, 21))) %>% 
+	select(CHROM, POS, REF, ALT, tri_context, tri_context_2, tri_context_3, penta_context, penta_context_2, penta_context_3, icosa_context, icosa_context_2, icosa_context_3, everything())
+
+m084_contexts
+```
+
+
+m122:
+
+```{r m122 context}
+m122_contexts = vcf_m122_tidy$fix %>% 
+	mutate(tri_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 1), 
+						  end=(POS + 1), 
+						  as.character=T)) %>% 
+	mutate(tri_context_2 = str_c(REF, ">", ALT, ":", tri_context)) %>% 
+	mutate(tri_context_3 = str_c(str_sub(tri_context, 1, 1), "[", REF, ">", ALT, "]", str_sub(tri_context, 3, 3))) %>% 
+	mutate(penta_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 2), 
+						  end=(POS + 2), 
+						  as.character=T)) %>% 
+	mutate(penta_context_2 = str_c(REF, ">", ALT, ":", penta_context)) %>% 
+	mutate(penta_context_3 = str_c(str_sub(penta_context, 1, 2), "[", REF, ">", ALT, "]", str_sub(penta_context, 4, 5))) %>% 
+	mutate(icosa_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 10), 
+						  end=(POS + 10), 
+						  as.character=T)) %>% 
+	mutate(icosa_context_2 = str_c(REF, ">", ALT, ":", icosa_context)) %>% 
+	mutate(icosa_context_3 = str_c(str_sub(icosa_context, 1, 10), "[", REF, ">", ALT, "]", str_sub(icosa_context, 12, 21))) %>% 
+	select(CHROM, POS, REF, ALT, tri_context, tri_context_2, tri_context_3, penta_context, penta_context_2, penta_context_3, icosa_context, icosa_context_2, icosa_context_3, everything())
+
+m122_contexts
+```
+
+m124:
+
+```{r m124 context}
+m124_contexts = vcf_m124_tidy$fix %>% 
+	mutate(tri_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 1), 
+						  end=(POS + 1), 
+						  as.character=T)) %>% 
+	mutate(tri_context_2 = str_c(REF, ">", ALT, ":", tri_context)) %>% 
+	mutate(tri_context_3 = str_c(str_sub(tri_context, 1, 1), "[", REF, ">", ALT, "]", str_sub(tri_context, 3, 3))) %>% 
+	mutate(penta_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 2), 
+						  end=(POS + 2), 
+						  as.character=T)) %>% 
+	mutate(penta_context_2 = str_c(REF, ">", ALT, ":", penta_context)) %>% 
+	mutate(penta_context_3 = str_c(str_sub(penta_context, 1, 2), "[", REF, ">", ALT, "]", str_sub(penta_context, 4, 5))) %>% 
+	mutate(icosa_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 10), 
+						  end=(POS + 10), 
+						  as.character=T)) %>% 
+	mutate(icosa_context_2 = str_c(REF, ">", ALT, ":", icosa_context)) %>% 
+	mutate(icosa_context_3 = str_c(str_sub(icosa_context, 1, 10), "[", REF, ">", ALT, "]", str_sub(icosa_context, 12, 21))) %>% 
+	select(CHROM, POS, REF, ALT, tri_context, tri_context_2, tri_context_3, penta_context, penta_context_2, penta_context_3, icosa_context, icosa_context_2, icosa_context_3, everything())
+
+m124_contexts
+```
+
+m1098:
+
+```{r m1098 context}
+m1098_contexts = vcf_m1098_tidy$fix %>% 
+	mutate(tri_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 1), 
+						  end=(POS + 1), 
+						  as.character=T)) %>% 
+	mutate(tri_context_2 = str_c(REF, ">", ALT, ":", tri_context)) %>% 
+	mutate(tri_context_3 = str_c(str_sub(tri_context, 1, 1), "[", REF, ">", ALT, "]", str_sub(tri_context, 3, 3))) %>% 
+	mutate(penta_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 2), 
+						  end=(POS + 2), 
+						  as.character=T)) %>% 
+	mutate(penta_context_2 = str_c(REF, ">", ALT, ":", penta_context)) %>% 
+	mutate(penta_context_3 = str_c(str_sub(penta_context, 1, 2), "[", REF, ">", ALT, "]", str_sub(penta_context, 4, 5))) %>% 
+	mutate(icosa_context = getSeq(x=mm10_genome, 
+						  names=CHROM, 
+						  start=(POS - 10), 
+						  end=(POS + 10), 
+						  as.character=T)) %>% 
+	mutate(icosa_context_2 = str_c(REF, ">", ALT, ":", icosa_context)) %>% 
+	mutate(icosa_context_3 = str_c(str_sub(icosa_context, 1, 10), "[", REF, ">", ALT, "]", str_sub(icosa_context, 12, 21))) %>% 
+	select(CHROM, POS, REF, ALT, tri_context, tri_context_2, tri_context_3, penta_context, penta_context_2, penta_context_3, icosa_context, icosa_context_2, icosa_context_3, everything())
+
+m1098_contexts
+```
+
+# Visualize results
+
+## Visualizing trinucleotide context distribution
+
+## Visualize n-2 (5') position base frequency in T[C>T]G mutations
+
+```{r}
+# m079 ----------------------------------------
+m079_CT = m079_contexts %>% 
+	filter(REF == "C" & ALT == "T")
+# write_tsv(x = m079_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m079-CT.txt")
+m079_CT_nMin2 = factor(str_sub(m079_CT$penta_context, 1, 1))
+m079_CT_TCG = m079_contexts %>% 
+	filter(tri_context_3 == "T[C>T]G")
+# write_tsv(x = m079_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m079-CT-TCG.txt")
+m079_CT_TCG_nMin2 = factor(str_sub(m079_CT_TCG$penta_context, 1, 1))
+pCT_TCGm079 = qplot(m079_CT_TCG_nMin2, main = "m079 T[C>T]G n-2 Nucleotide Distribution")
+pCTm079 = qplot(m079_CT_nMin2, main = "m079 C>T n-2 Nucleotide Distribution")
+
+# m084 ----------------------------------------
+m084_CT = m084_contexts %>% 
+	filter(REF == "C" & ALT == "T")
+# write_tsv(x = m084_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m084-CT.txt")
+m084_CT_nMin2 = factor(str_sub(m084_CT$penta_context, 1, 1))
+pCTm084 = qplot(m084_CT_nMin2, main = "m084 C>T n-2 Nucleotide Distribution")
+m084_CT_TCG = m084_contexts %>% 
+	filter(tri_context_3 == "T[C>T]G")
+# write_tsv(x = m084_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m084-CT-TCG.txt")
+m084_CT_TCG_nMin2 = factor(str_sub(m084_CT_TCG$penta_context, 1, 1))
+pCT_TCGm084 = qplot(m084_CT_TCG_nMin2, main = "m084 T[C>T]G n-2 Nucleotide Distribution")
+
+# m122 ----------------------------------------
+m122_CT = m122_contexts %>% 
+	filter(REF == "C" & ALT == "T")
+# write_tsv(x = m122_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m122-CT.txt")
+m122_CT_nMin2 = factor(str_sub(m122_CT$penta_context, 1, 1))
+pCTm122 = qplot(m122_CT_nMin2, main = "m122 C>T n-2 Nucleotide Distribution")
+m122_CT_TCG = m122_contexts %>% 
+	filter(tri_context_3 == "T[C>T]G")
+# write_tsv(x = m122_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m122-CT-TCG.txt")
+m122_CT_TCG_nMin2 = factor(str_sub(m122_CT_TCG$penta_context, 1, 1))
+pCT_TCGm122 = qplot(m122_CT_TCG_nMin2, main = "m122 T[C>T]G n-2 Nucleotide Distribution")
+
+# m124  ----------------------------------------
+m124_CT = m124_contexts %>% 
+	filter(REF == "C" & ALT == "T")
+# write_tsv(x = m124_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m124-CT.txt")
+m124_CT_nMin2 = factor(str_sub(m124_CT$penta_context, 1, 1))
+pCTm124 = qplot(m124_CT_nMin2, main = "m124 C>T n-2 Nucleotide Distribution")
+m124_CT_TCG = m124_contexts %>% 
+	filter(tri_context_3 == "T[C>T]G")
+# write_tsv(x = m124_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m124-CT-TCG.txt")
+m124_CT_TCG_nMin2 = factor(str_sub(m124_CT_TCG$penta_context, 1, 1))
+pCT_TCGm124 = qplot(m124_CT_TCG_nMin2, main = "m124 T[C>T]G n-2 Nucleotide Distribution")
+
+# m1098 ----------------------------------------
+m1098_CT = m1098_contexts %>% 
+	filter(REF == "C" & ALT == "T")
+# write_tsv(x = m1098_CT, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m1098-CT.txt")
+m1098_CT_nMin2 = factor(str_sub(m1098_CT$penta_context, 1, 1))
+pCTm1098 = qplot(m1098_CT_nMin2, main = "m1098 C>T n-2 Nucleotide Distribution")
+m1098_CT_TCG = m1098_contexts %>% 
+	filter(tri_context_3 == "T[C>T]G")
+# write_tsv(x = m1098_CT_TCG, path = "Selina/task_02--pentanucleotide-context/04--analysis/nucleotide-contexts/m1098-CT-TCG.txt")
+m1098_CT_TCG_nMin2 = factor(str_sub(m1098_CT_TCG$penta_context, 1, 1))
+pCT_TCGm1098 = qplot(m1098_CT_TCG_nMin2, main = "m1098 T[C>T]G n-2 Nucleotide Distribution")
+
+# All
+CT_muts_all = bind_rows(m079_CT, m084_CT, m122_CT, m124_CT, m1098_CT)
+CT_muts_all_nMin2 = factor(str_sub(CT_muts_all$penta_context, 1, 1))
+pCT_All = qplot(CT_muts_all_nMin2, main = "All C>T n-2 Nucleotide Distribution")
+
+CT_TCG_muts_all = bind_rows(m079_CT_TCG, m084_CT_TCG, m122_CT_TCG, m124_CT_TCG, m1098_CT_TCG)
+CT_TCG_muts_all_nMin2 = factor(str_sub(CT_TCG_muts_all$penta_context, 1, 1))
+pCT_TCG_All = qplot(CT_TCG_muts_all_nMin2, main = "All T[C>T]G n-2 Nucleotide Distribution")
+
+# arrange all ----
+grid.arrange(pCTm079, pCTm084, pCTm122, pCTm124, pCTm1098, pCT_All)
+```
+
+## Visualize T[C>T]G mutations icosanucleotide context for nucleotide runs
+
+m079:
+
+```{r m079 T runs T>G:TTT}
+# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts
+m079_TG_TTT_icosa = m079_contexts %>% 
+    select(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_2, icosa_context_3) %>% 
+    filter(REF == "T" & ALT == "G" & tri_context == "TTT")
+
+# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list
+m079_TG_TTT_icosa_T_runs = str_locate_all(string = m079_TG_TTT_icosa[["icosa_context"]], pattern = "T*TTTT*")
+
+# Initalize pattern lengths vector
+TTT_run_lengths = vector(mode = "numeric", length = 0)
+# FOR: every variant's icosanucleotide context set of matched patterns (list elements), 
+for (var in m079_TG_TTT_icosa_T_runs) {
+    var = as_tibble(var)
+    # print(var)
+    # str(var)
+    # FOR: every pattern of 3+ T's matched (list elements elements),
+    for (pattern in 1:nrow(var)) {
+        # print(var[pattern, ])
+        # str(var[pattern, ])
+        full_seq_index = seq(as.integer(var[pattern, 1]), as.integer(var[pattern, 2]))
+        # expand the full sequences
+        # print(full_seq_index)
+        # IF: 11 (position of the variant) is included 'between' the sequence bounds
+        if (11 %in% full_seq_index) {
+            # get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context
+            TTT_run_lengths =  c(TTT_run_lengths, length(full_seq_index))
+        # ELSE: do nothing...
+        }
+    }
+}
+
+# Plot histogram of distribution of distribution of lengths of T runs
+ggm079 = ggplot(data.frame(TTT_run_lengths), aes(x = TTT_run_lengths)) + 
+    geom_histogram(binwidth = 1, fill="black", color="white") + 
+    theme_classic() + 
+    ggtitle("m079: Distribution of T Repeat Lengths Around\nT>G:TTT Variant Sites") + 
+    # theme(text = element_text(size = 16)) + 
+    xlab("Length of T Repeat") + 
+    scale_x_continuous(breaks = 3:22)
+ggm079
+```
+
+m084:
+
+```{r m084 T runs T>G:TTT}
+# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts
+m084_TG_TTT_icosa = m084_contexts %>% 
+    select(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_2, icosa_context_3) %>% 
+    filter(REF == "T" & ALT == "G" & tri_context == "TTT")
+
+# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list
+m084_TG_TTT_icosa_T_runs = str_locate_all(string = m084_TG_TTT_icosa[["icosa_context"]], pattern = "T*TTTT*")
+
+# Initalize pattern lengths vector
+TTT_run_lengths = vector(mode = "numeric", length = 0)
+# FOR: every variant's icosanucleotide context set of matched patterns (list elements), 
+for (var in m084_TG_TTT_icosa_T_runs) {
+    var = as_tibble(var)
+    # print(var)
+    # str(var)
+    # FOR: every pattern of 3+ T's matched (list elements elements),
+    for (pattern in 1:nrow(var)) {
+        # print(var[pattern, ])
+        # str(var[pattern, ])
+        full_seq_index = seq(as.integer(var[pattern, 1]), as.integer(var[pattern, 2]))
+        # expand the full sequences
+        # print(full_seq_index)
+        # IF: 11 (position of the variant) is included 'between' the sequence bounds
+        if (11 %in% full_seq_index) {
+            # get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context
+            TTT_run_lengths =  c(TTT_run_lengths, length(full_seq_index))
+        # ELSE: do nothing...
+        }
+    }
+}
+
+# Plot histogram of distribution of distribution of lengths of T runs
+ggm084 = ggplot(data.frame(TTT_run_lengths), aes(x = TTT_run_lengths)) + 
+    geom_histogram(binwidth = 1, fill="black", color="white") + 
+    theme_classic() + 
+    ggtitle("m084: Distribution of T Repeat Lengths Around\nT>G:TTT Variant Sites") + 
+    # theme(text = element_text(size = 16)) + 
+    xlab("Length of T Repeat") + 
+    scale_x_continuous(breaks = 3:22)
+ggm084
+```
+
+m122:
+
+```{r m122 T runs T>G:TTT}
+# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts
+m122_TG_TTT_icosa = m122_contexts %>% 
+    select(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_2, icosa_context_3) %>% 
+    filter(REF == "T" & ALT == "G" & tri_context == "TTT")
+
+# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list
+m122_TG_TTT_icosa_T_runs = str_locate_all(string = m122_TG_TTT_icosa[["icosa_context"]], pattern = "T*TTTT*")
+
+# Initalize pattern lengths vector
+TTT_run_lengths = vector(mode = "numeric", length = 0)
+# FOR: every variant's icosanucleotide context set of matched patterns (list elements), 
+for (var in m122_TG_TTT_icosa_T_runs) {
+    var = as_tibble(var)
+    # print(var)
+    # str(var)
+    # FOR: every pattern of 3+ T's matched (list elements elements),
+    for (pattern in 1:nrow(var)) {
+        # print(var[pattern, ])
+        # str(var[pattern, ])
+        full_seq_index = seq(as.integer(var[pattern, 1]), as.integer(var[pattern, 2]))
+        # expand the full sequences
+        # print(full_seq_index)
+        # IF: 11 (position of the variant) is included 'between' the sequence bounds
+        if (11 %in% full_seq_index) {
+            # get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context
+            TTT_run_lengths =  c(TTT_run_lengths, length(full_seq_index))
+        # ELSE: do nothing...
+        }
+    }
+}
+
+# Plot histogram of distribution of distribution of lengths of T runs
+ggm122 = ggplot(data.frame(TTT_run_lengths), aes(x = TTT_run_lengths)) + 
+    geom_histogram(binwidth = 1, fill="black", color="white") + 
+    theme_classic() + 
+    ggtitle("m122: Distribution of T Repeat Lengths Around\nT>G:TTT Variant Sites") + 
+    # theme(text = element_text(size = 16)) + 
+    xlab("Length of T Repeat") + 
+    scale_x_continuous(breaks = 3:22)
+ggm122
+```
+
+m124:
+
+```{r m124 T runs T>G:TTT}
+# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts
+m124_TG_TTT_icosa = m124_contexts %>% 
+    select(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_2, icosa_context_3) %>% 
+    filter(REF == "T" & ALT == "G" & tri_context == "TTT")
+
+# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list
+m124_TG_TTT_icosa_T_runs = str_locate_all(string = m124_TG_TTT_icosa[["icosa_context"]], pattern = "T*TTTT*")
+
+# Initalize pattern lengths vector
+TTT_run_lengths = vector(mode = "numeric", length = 0)
+# FOR: every variant's icosanucleotide context set of matched patterns (list elements), 
+for (var in m124_TG_TTT_icosa_T_runs) {
+    var = as_tibble(var)
+    # print(var)
+    # str(var)
+    # FOR: every pattern of 3+ T's matched (list elements elements),
+    for (pattern in 1:nrow(var)) {
+        # print(var[pattern, ])
+        # str(var[pattern, ])
+        full_seq_index = seq(as.integer(var[pattern, 1]), as.integer(var[pattern, 2]))
+        # expand the full sequences
+        # print(full_seq_index)
+        # IF: 11 (position of the variant) is included 'between' the sequence bounds
+        if (11 %in% full_seq_index) {
+            # get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context
+            TTT_run_lengths =  c(TTT_run_lengths, length(full_seq_index))
+        # ELSE: do nothing...
+        }
+    }
+}
+
+# Plot histogram of distribution of distribution of lengths of T runs
+ggm124 = ggplot(data.frame(TTT_run_lengths), aes(x = TTT_run_lengths)) + 
+    geom_histogram(binwidth = 1, fill="black", color="white") + 
+    theme_classic() + 
+    ggtitle("m124: Distribution of T Repeat Lengths Around\nT>G:TTT Variant Sites") + 
+    # theme(text = element_text(size = 16)) + 
+    xlab("Length of T Repeat") + 
+    scale_x_continuous(breaks = 3:22)
+ggm124
+```
+
+m1098:
+
+```{r m1098 T runs T>G:TTT}
+# filter only T>G:TTT variants with trinucleotide and icosanucleotide contexts
+m1098_TG_TTT_icosa = m1098_contexts %>% 
+    select(CHROM, POS, REF, ALT, tri_context, icosa_context, icosa_context_2, icosa_context_3) %>% 
+    filter(REF == "T" & ALT == "G" & tri_context == "TTT")
+
+# locate all patterns of at least 3 T's flanked on either side by 0 or more T's. Returns a list
+m1098_TG_TTT_icosa_T_runs = str_locate_all(string = m1098_TG_TTT_icosa[["icosa_context"]], pattern = "T*TTTT*")
+
+# Initalize pattern lengths vector
+TTT_run_lengths = vector(mode = "numeric", length = 0)
+# FOR: every variant's icosanucleotide context set of matched patterns (list elements), 
+for (var in m1098_TG_TTT_icosa_T_runs) {
+    var = as_tibble(var)
+    # print(var)
+    # str(var)
+    # FOR: every pattern of 3+ T's matched (list elements elements),
+    for (pattern in 1:nrow(var)) {
+        # print(var[pattern, ])
+        # str(var[pattern, ])
+        # expand the full sequences
+        full_seq_index = seq(as.integer(var[pattern, 1]), as.integer(var[pattern, 2]))
+        # print(full_seq_index)
+        # IF: 11 (position of the variant) is included 'between' the sequence bounds
+        if (11 %in% full_seq_index) {
+            # get the length of the sequence and add it to a vector (init outside of entire loop at beginning). Vector should end up being the same length as the initial list because at least one match will always be the central TTT trinucleotide context
+            TTT_run_lengths =  c(TTT_run_lengths, length(full_seq_index))
+        # ELSE: do nothing...
+        }
+    }
+}
+
+# Plot histogram of distribution of distribution of lengths of T runs
+ggm1098 = ggplot(data.frame(TTT_run_lengths), aes(x = TTT_run_lengths)) + 
+    geom_histogram(binwidth = 1, fill="black", color="white") + 
+    theme_classic() + 
+    ggtitle("m1098: Distribution of T Repeat Lengths Around\nT>G:TTT Variant Sites") + 
+    # theme(text = element_text(size = 16)) + 
+    xlab("Length of T Repeat") + 
+    scale_x_continuous(breaks = 3:22)
+ggm1098
+```
+
+Arrange all plots in a grid
+
+```{r}
+grid.arrange(ggm079, ggm084, ggm122, ggm124, ggm1098)
+```
+

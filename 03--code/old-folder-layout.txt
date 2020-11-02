@@ -1,0 +1,10 @@
+00--EDA/
+00--general/
+00--obtain-and-clean-data/
+01--raw-data-QC/
+02--preprocessing-and-read-mapping/
+03--variant-calling-and-filtering/
+04--variant-annotation/
+06--mutation-analysis/
+other/
+zz--archive/

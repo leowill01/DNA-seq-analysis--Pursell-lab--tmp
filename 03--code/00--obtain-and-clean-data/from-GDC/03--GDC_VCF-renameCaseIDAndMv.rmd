@@ -1,0 +1,172 @@
+---
+title: 'Rename GDC VCFs from UUID to Case ID'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 06_June 24, 7:14 PM CDT
+  | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+params:
+  in_dir_of_gdc_vcfs: '/Volumes/Pursell-Lab-HD/Pursell-lab/01--raw-data/02--external/NIH-GDC/POLE-related/2020-10-06--TCGA-all-CRC-UCEC/download'
+  in_combined_file_and_metadata_table: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/02--data/01--semiraw-data/02--external/GDC/2020-10-06--TCGA-all-CRC-UCEC/02--metadata-merge/results--2020-10-19-113939/tables/combined-GDC-metadata-and-file-info.tsv'
+  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/02--data/01--semiraw-data/02--external/GDC/2020-10-06--TCGA-all-CRC-UCEC/03--move-and-rename-VCFs'
+  out_opt_id: ''
+---
+
+# About
+
+This script takes input of a table with full filepath, basename, and rootnames of a set of GDC gzip'd VCFs, as well as columns for matched GDC case IDs to the VCF file UUIDs (the file rootnames). It finds the gzip VCFs, moves them to the working results dir, renames them with the case ID as the file rootname for each file, and unzips them. This makes it easier to plot case IDs as samples in mutation analysis.
+
+# Setup
+
+```{r setup}
+# Load packages ----
+library(knitr)
+library(tidyverse)
+
+# Set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Set global chunk options ----
+# opts_chunk$set(
+# 	tidy.opts = list(width.cutoff = 60),
+# 	tidy = TRUE,
+# 	dev = "pdf",
+# 	fig.path = paste0(dir_results, "/figures-Rmd/")
+# )
+```
+
+```{r other setup}
+# make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+	# set results dir name
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')),
+                         if (exists("out_opt_id", where = params)) {paste0("--", params$out_opt_id)})
+    
+    # make results dir
+    dir.create(dir_results)
+} else {
+	# set simple results dir name
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    # create results dir
+    dir.create(dir_results)
+}
+
+# make results subdirs ----
+dir_results_data = paste0(dir_results, "/data")
+dir.create(dir_results_data)
+dir_results_tables = paste0(dir_results, "/tables")
+dir.create(dir_results_tables)
+dir_results_plots = paste0(dir_results, "/plots")
+dir.create(dir_results_plots)
+dir_tmp = paste0(dir_results, "/tmp")
+dir.create(dir_tmp)
+
+# export current script to results dir for reproducibility ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# export variables to shell environment ----
+Sys.setenv(
+	# results dirs and subdirs
+	dir_results = dir_results,
+	dir_results_data = dir_results_data,
+	dir_results_plots = dir_results_plots,
+	dir_results_tables = dir_results_tables,
+	# tmp dir
+	dir_tmp = dir_tmp,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+```
+
+# Load Data
+
+Load table of original filebaserootnames and GDC IDs:
+```{r load path and id table}
+tab_filepaths_metadata = read_tsv(file = params$in_combined_file_and_metadata_table)
+glimpse(tab_filepaths_metadata)
+```
+
+# Transform Data
+
+## Copy files to working folder
+
+Copy files in `absolute_filepath` column to working results dir
+
+```{r copy files to wd, message=FALSE}
+file.copy(from = tab_filepaths_metadata$absolute_filepath, to = dir_results_data)
+```
+
+Unzip all `.vcf.gz` files after copying:
+```{bash, engine.opts='-l', comment=NA}
+echo "Decompressing all '.gz' files in: " "$dir_results_data"
+
+# decompress all .vcf.gz files:
+for i in "$dir_results_data"/*.gz
+do
+  gunzip "$i"
+done
+```
+
+## Rename VCFs with GDC case ID as file root
+
+Rename the rootname of copied files from the GDC UUID to the GDC case ID
+
+```{r rename files with GDC submitter ID}
+# make vector of new files
+vec_cp_files_basenames = list.files(path = dir_results_data, pattern = ".+\\.vcf$")
+
+for (ivcf in vec_cp_files_basenames) {
+# for (ivcf in "0bcef875-5efa-46f2-95a8-d01a1ccabba9.vep.vcf.gz") { # eg file
+  print(paste0("Working on i: ", ivcf)) # e.g. print
+  
+    # file basename is already the iter
+    ivcf_basename = ivcf
+    
+    # get absolute filepath of file
+    ivcf_abs_filepath = paste0(dir_results_data, "/", ivcf_basename)
+    print(paste0("Absolute filepath: ", ivcf_abs_filepath))
+    
+    # get file rootname which is the UUID
+    ivcf_rootname = str_extract(string = ivcf_basename, pattern = ".+?(?=\\.)")
+    print(paste0("File rootname: ", ivcf_rootname))
+    
+    # get file extension
+    ivcf_ext = str_extract(string = ivcf_basename, pattern = "\\..+")
+    print(paste0("File extension: ", ivcf_ext))
+    
+    # get row number in table for matching rootname to UUID
+    match_uuid_rootname_row_no = match(x = ivcf_rootname, table = tab_filepaths_metadata[["file_rootname"]])
+    print(paste0("UUID-root match row number: ", match_uuid_rootname_row_no))
+    
+    # get case ID in same row for the matched row no
+    ivcf_case_id = tab_filepaths_metadata[["cases.submitter_id"]][match_uuid_rootname_row_no]
+    print(paste0("Matched case ID: ", ivcf_case_id))
+    
+    # rename VCF file with case ID as file root instead of UUID
+    file.rename(from = ivcf_abs_filepath, to = paste0(dir_results_data, "/", ivcf_case_id, ".vep.vcf"))
+}
+```
+
+# Session Info
+
+```{r save session data}
+# save data image
+save.image(file = paste0(dir_results, "/data.Rdata"))
+
+# save session info
+write_lines(capture.output(sessionInfo()), 
+            path = paste0(dir_results, "/sessionInfo.txt"))
+```

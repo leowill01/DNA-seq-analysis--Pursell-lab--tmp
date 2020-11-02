@@ -1,0 +1,182 @@
+---
+title: 'Statistics for Mapped Reads'
+author: 'Leo Williams'
+date: |
+    | Created: 2020 01_Jan 01
+    | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+output: 
+    html_notebook: 
+        toc: yes
+        toc_float: yes
+        highlight: pygments
+params:
+    in_bam: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/02--read-mapping-and-postprocessing/04--HCT116-Selina-revisions/02--map-reads-and-clean/rsync/S459F-6K/results/S459F-6K.clean.bam' # string (filepath)
+    in_bed: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/02--data/02--reference-data/sequencing/target-capture-regions/Agilent-SureSelect-All-Human-Exon-V6-r2/from-Agilent-website/S07604514_hs_hg38/S07604514_Regions.bed' # string (filepath)
+    in_bed_no_header: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/02--data/02--reference-data/sequencing/target-capture-regions/Agilent-SureSelect-All-Human-Exon-V6-r2/from-Agilent-website/S07604514_hs_hg38/S07604514_Regions-no-header.bed' # string (filepath)
+    out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/02--read-mapping-and-postprocessing/04--HCT116-Selina-revisions/03--coverage-stats' # string (dirpath)
+    out_opt_id: NULL
+---
+
+# About
+
+FILENAME: 03--mapped-reads-stats.rmd
+USAGE: Run interactively in RStudio
+DESCRIPTION: This script uses various tools to calculate and export read coverage statistics for a BAM file.
+
+Inputs:
+
+- BAM file
+- BED file
+- BED file without the header: 3-column, tab-separated file with format `CHR START END`
+
+Outputs:
+
+- SAMtools
+    - 
+- BEdtools
+    - 
+- GATK
+    - 
+
+VERSION:
+NOTES:
+R VERSION:
+DEV PLATFORM:
+
+# Setup
+
+Load libraries and set global knit options:
+
+```{r setup}
+# load packages
+library(knitr)
+library(tidyverse)
+
+# set global knit options
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+```
+
+Make results dir for data output:
+
+```{r make results dir}
+# Make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         "--",
+                         params$out_opt_id,
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+} else {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+}
+```
+
+Make results subdirectories:
+
+```{r make subdirs}
+# * make tmp and results subdirectories ----
+dir_tmp = paste0(dir_results, "/tmp")
+dir.create(dir_tmp)
+
+# dir_results_tables = paste0(dir_results, "/tables")
+# dir.create(dir_results_tables)
+# dir_results_plots = paste0(dir_results, "/plots")
+# dir.create(dir_results_plots)
+
+dir_results_samtools = paste0(dir_results, "/samtools")
+dir_results_bedtools = paste0(dir_results, "/bedtools")
+dir_results_gatk     = paste0(dir_results, "/gatk")
+dir.create(dir_results_samtools)
+dir.create(dir_results_bedtools)
+dir.create(dir_results_gatk)
+```
+
+Put a copy of the source code file in the results directory for reproducibility:
+
+```{r copy src file}
+# get filepath of current script to copy into results dir ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+```
+
+Export parameters and variables as environment variables for shell access:
+
+```{r export shell vars}
+# Export shell environment variables
+Sys.setenv(
+    # string Rmd params
+    in_bam = params$in_bam,
+    in_bed = params$in_bed,
+    in_bed_no_header = params$in_bed_no_header,
+    out_dir = params$out_dir,
+	# tmp dir
+	dir_tmp = dir_tmp,
+	# results dirs and subdirs
+	dir_results = dir_results,
+	dir_results_samtools = dir_results_samtools,
+	dir_results_bedtools = dir_results_bedtools,
+	dir_results_gatk = dir_results_gatk,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+
+	# dir_results_plots = dir_results_plots,
+	# dir_results_tables = dir_results_tables,
+```
+
+Set theme for `ggplot2`:
+
+```{r set ggplot theme}
+# set ggplot theme ----
+theme_set(theme_classic() +
+          theme(panel.grid.major = element_line(colour = "#DDDDDD"),
+                panel.grid.minor = element_line(color = "#FFFFFF"),
+                text = element_text(size = 16, face = "bold")))
+```
+
+# Data
+
+Must load data to each individual `zsh` chunk
+
+# Analysis
+
+## SAMtools
+
+```{zsh flagstat, engine.opts='-i'}
+
+```
+
+
+## BEdtools
+
+```{zsh, engine.opts='-i'}
+
+```
+
+
+## GATK
+
+```{zsh, engine.opts='-i'}
+
+```
+
+
+# Session Info
+
+```{r save session data}
+# save data image
+save.image(file = paste0(dir_results, "/data.Rdata"))
+
+# save session info
+write_lines(capture.output(sessionInfo()), 
+            path = paste0(dir_results, "/sessionInfo.txt"))
+```

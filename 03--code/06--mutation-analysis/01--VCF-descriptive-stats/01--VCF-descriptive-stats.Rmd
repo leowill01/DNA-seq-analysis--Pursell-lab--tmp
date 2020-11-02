@@ -1,0 +1,804 @@
+---
+title: 'Descriptive Statistics for VCFs (New Version)'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 08_Aug 05
+  | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+params:
+  # REQUIRED ========================================
+  in_info_table: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/POLE-related/13--all-POLE-mut-and-P53-doubleHets/01--info-table.tsv' # string; path to table file. Must contain columns named 'sample_name' and 'absolute_filepath'
+    # REQUIRED VARIABLE COLUMNS:
+      # - 'sample_name'
+      # - 'absolute_filepath'
+      # - 'file_rootname'
+      # - 'species' ; ['mouse', 'human']
+      # - 'seq_target_region_size_in_Mb'
+  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/POLE-related/13--all-POLE-mut-and-P53-doubleHets/03--results-desc-stats' # string -- path to dir
+  isMultispp: no # {yes|no}; default: no
+  species: 'mouse' # string or c("mouse", "human") 'species' must be a variable in the input info table with each observation having the value "mouse" or "human'.
+  varscan_or_mutect: "varscan" # string, ["varscan"|"mutect"], type of VCFs input
+  
+  # OPTIONAL ========================================
+  out_optID: NULL # string or NULL
+  
+  # TMB plot variables  ========================================
+  tmb_barplot_fill: "TP53_status" # string, factor - name of column in info table
+  
+  tmb_box_var_subset: "TP53_status" # info table variable to filter for, e.g. if you only want to compare non-tumor tissues, put "is_tumor" and for 'tmb_box_var_subset_value" put the value to filter for
+  tmb_box_var_subset_value: NULL # value depends on var type of 'tmb_box_var_subset'
+  
+  tmb_box_var_x: "TP53_status" # string, factor - name of column in info table
+  tmb_box_var_fill: "TP53_status" # string - name of column in info table
+  tmb_box_var_color: "TP53_status" # string - name of column in info table
+  tmb_box_ttest: yes # yes or no
+  tmb_box_anova: no # yes or no
+  tmb_box_multitest: no # yes or no
+  tmb_box_group_comparisons: !r list(c(NULL)) # list or NULL; must be values of the varible on x-axis from 'tmb_box_var_x'
+  
+  vaf_plot_singles: yes # yes|no, whether or not to plot VAF histogram/density plots for each individual sample. 'no' useful for large sample sets
+  vaf_var_fill: NULL # string, default=NULL, name of factor to color VAF density & histograms by.
+  vaf_var_fill_colors: !r list(NULL) # string, default=NULL, name of factor to color VAF density & histograms by.
+---
+
+# About
+
+This script takes an info table for a set of VCF files as input and outputs various descriptive statistics on those files.
+
+The following variables are required variables/columns for the input info table:
+
+- `absolute_filepath`
+- `sample_name` - ***MUST be unique***
+
+# Usage
+
+Fill in *YAML* params **according** to desired analysis.
+
+# Setup
+
+```{r setup, message=FALSE}
+# load packages ----
+library(knitr)
+library(scales)
+library(BSgenome)
+if (params$isMultispp) {
+
+	library(BSgenome.Mmusculus.UCSC.mm10)
+    refGenomeMouse = "BSgenome.Mmusculus.UCSC.mm10"
+
+    library(BSgenome.Hsapiens.UCSC.hg38)
+    refGenomeHuman = "BSgenome.Hsapiens.UCSC.hg38"
+
+} else if (params$species == "mouse") {
+
+	library(BSgenome.Mmusculus.UCSC.mm10)
+    ref_genome = "BSgenome.Mmusculus.UCSC.mm10"
+
+} else if (params$species == "human") {
+
+    library(BSgenome.Hsapiens.UCSC.hg38)
+    ref_genome = "BSgenome.Hsapiens.UCSC.hg38"
+
+}
+library(extrafont)
+library(gridExtra)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+library(tidyverse)
+
+
+# set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+```
+
+Make directories and subdirs for output:
+
+```{r make output dirs}
+# 4. Make results dir ----
+if (!is.null(params[["out_optID"]])) {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')),
+                         "--",
+                         if (exists("out_optID", where = params)) {params$out_optID})
+    dir.create(dir_results)
+} else {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+}
+
+# make results subdirectories ----
+	# dir_results_data = paste0(dir_results, "/data")
+	# dir.create(dir_results_data)
+	# dir for data tables
+		dir_results_tables = paste0(dir_results, "/tables")
+		dir.create(dir_results_tables)
+	# dir for plots
+		dir_results_plots = paste0(dir_results, "/plots")
+		dir.create(dir_results_plots)
+	# dir for TMB plots
+		dir_results_plots_tmb = paste0(dir_results, "/plots/tmb")
+		dir.create(dir_results_plots_tmb)
+	# dir for VAF histogram plots
+		dir_results_plots_vafHisto = paste0(dir_results, "/plots/vafHisto")
+		dir.create(dir_results_plots_vafHisto)
+	# dir for VAF density plots
+		dir_results_plots_vafDens = paste0(dir_results, "/plots/vafDens")
+		dir.create(dir_results_plots_vafDens)
+	# Tmp dir for intermediate files
+		dir_tmp = paste0(dir_results, "/tmp")
+		dir.create(dir_tmp)
+	# Tmp dir for VCF files
+		dir_tmp_vcfs = paste0(dir_tmp, "/vcfs")
+		dir.create(dir_tmp_vcfs)
+
+# get filepath of current script to copy into results dir ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# Export shell environment variables ----
+Sys.setenv(
+	# results dirs and subdirs
+	dir_results = dir_results,
+	dir_results_plots = dir_results_plots,
+	dir_results_plots_tmb = dir_results_plots_tmb,
+	dir_results_plots_vafDens = dir_results_plots_vafDens,
+	dir_results_plots_vafHisto = dir_results_plots_vafHisto,
+	dir_results_tables = dir_results_tables,
+	# tmp dir
+	dir_tmp = dir_tmp,
+	# tmp VCFs dir
+	dir_tmp_vcfs = dir_tmp_vcfs,
+	# filepath of current script
+	src_filepath = src_filepath
+)
+
+# # 7. Set global chunk options ----
+# opts_chunk$set(
+# 	tidy.opts = list(width.cutoff = 60),
+# 	tidy = TRUE,
+# 	dev = "pdf",
+# 	fig.path = paste0(dir_results, "/figures-Rmd/")
+# )
+
+# TODO: use apply or get() to dynamically export all params as shell env variables
+```
+
+Confirm variables are exported to shell environment:
+```{zsh confirm env paths}
+# printf '$dir_results\n\
+# echo $dir_results_plots
+# echo $dir_results_tables
+# echo $dir_tmp
+# echo $src_filepath
+printf "Results dir: ${dir_results}\n\n\
+Plots dir: ${dir_results_plots}\n\n\
+Tables dir: ${dir_results_tables}\n\n\
+Tmp dir: ${dir_tmp}\n\n\
+Tmp VCFs dir: ${dir_tmp_vcfs}\n\n\
+Script src: ${src_filepath}"
+```
+
+Source custom ggplot2 themes:
+
+```{r src ggplot themes}
+try(source("03--code/00--general/ggplot2-themes.R"))
+```
+
+# Data
+
+## Load data
+
+Load input info table
+
+```{r load info table}
+in_df_info_table = read_tsv(params[["in_info_table"]])
+in_df_info_table
+```
+
+Export VCF filepaths for access by the shell environment:
+```{r export filepaths for shell}
+# make a table of just the absolute filepaths
+out_f_absFilepathsVCFs = paste0(dir_tmp, "/absoluteFilepathsVCFs.tsv")
+
+# write abs filepaths to TSV file
+write_tsv(x = in_df_info_table["absolute_filepath"],
+		  path = out_f_absFilepathsVCFs,
+		  col_names = F)
+
+Sys.setenv(v_absFilepaths = out_f_absFilepathsVCFs)
+```
+
+```{zsh confirm env}
+# confirm env var path
+echo $v_absFilepaths
+```
+
+Copy and compress VCF files to working tmp dir:
+<!-- # ```{zsh copy vcfs and zip, engine.opts='-i', comment=NA} -->
+```{bash copy vcfs and zip, engine.opts='-l', comment=NA}
+while read line ; do
+
+	# get file basename
+	lineBasename=$(basename "$line")
+
+	# define vcf copy and gz filenames
+	f_vcfCp="${dir_tmp_vcfs}/${lineBasename}"
+	f_vcfCpGz="${f_vcfCp}.gz"
+
+	# copy VCF to tmp dir
+	cp "$line" "$f_vcfCp"
+
+	# bgzip VCF and index with tabix
+	bgzip -c "$f_vcfCp" > "$f_vcfCpGz"
+	tabix "$f_vcfCpGz"
+
+done < "${dir_tmp}/absoluteFilepathsVCFs.tsv"
+```
+
+## Data wrangling
+
+Subset every VCF for just the body for import into R as a table:
+```{zsh subset vcf bodies, engine.opts='-i'}
+for vcf in "$dir_tmp_vcfs"/*.vcf ; do
+
+	# print filename
+	# echo "$vcf"
+
+	# remove VCF header and output body with col headers to a TSV
+	grep -v '^##' "$vcf" > "${vcf}.body.tsv"
+
+done
+```
+
+Make a list of filepaths for the VCF body TSV (used in VAF distribution section):
+```{r make vcf body tsv list}
+v_vcfBodyTsvFilepaths = list.files(
+	path = dir_tmp_vcfs,
+	pattern = "vcf.body.tsv"
+)
+v_vcfBodyTsvFilepaths
+```
+
+# Analysis
+
+## 1. Tumor mutation burden
+
+Initialize empty TMB table:
+```{r init mutation table}
+# define filename
+t_mutation_counts = paste0(dir_results_tables, "/mutation-counts.tsv")
+
+# export to shell env
+Sys.setenv(t_mutation_counts = t_mutation_counts)
+```
+
+Add column headers to table:
+```{bash add mutation tab col headers, engine.opts='-l', comment=NA}
+# add col headers to file
+printf "file_rootname\tmutations\n" > "$t_mutation_counts"
+```
+
+For every sample's original VCF, get the number of variants and add to mutation counts file:
+```{bash, engine.opts='-l', comment=NA}
+while read line ; do
+	# get file basename then rootname to use as the sample name
+	fileBasename=$(basename "$line")
+	# printf "File basename: ${fileBasename}\n"
+	fileRootname=${fileBasename%%.*}
+	# printf "File rootname: ${fileRootname}\n"
+
+	# count all variants and assign to mutations variable
+	mutations=$(grep -v '^#' "$line" | wc -l)
+	# printf "mutations: ${mutations}\n"
+
+	# add sample name and mutations values to the mutation counts table
+	# printf "${fileRootname}\t${mutations}\n\n"
+	printf "${fileRootname}\t${mutations}\n" >> "$t_mutation_counts"
+done < "$v_absFilepaths"
+```
+
+Load mutations table as a tibble and merge with input table metadata based on file_rootname:
+```{r load mutations tab}
+# load mutations table as a tibble
+t_mutation_counts_load = read_tsv(t_mutation_counts)
+t_mutation_counts_load
+```
+
+```{r calculate tmb, eval=F}
+# Join mutations data to info table
+t_infoTable_join = left_join(x = t_mutation_counts_load, y = in_df_info_table, by = "file_rootname") %>%
+	# FIXME: where did 'sampleRootName' fit in here?
+	# select(sample_name, mutations, !c(file_rootname, sampleRootName), everything()) %>%
+	select(sample_name, mutations, everything()) %>%
+	# calculate TMB from mutation counts and sequencing target region
+	mutate(TMB = mutations/seq_target_region_size_in_Mb)
+t_infoTable_join
+
+# write final mutations table to file
+t_infoTable_join %>%
+	select(sample_name, mutations) %>%
+	write_tsv(x = ., path = paste0(dir_results_tables, "/mutations-table.tsv"))
+```
+
+Plot barplot of sample TMBs:
+```{r TMB barplot, message=F}
+p_tmb_barplot = t_infoTable_join %>%
+	ggplot(aes(
+		# x = sample_name,
+		# x = reorder(sample_name, -TMB),
+		x = reorder(sample_name, TMB),
+		y = TMB,
+		fill = if (exists("tmb_barplot_fill", where = params)) {
+			as.factor(get(params$tmb_barplot_fill))
+		}
+	)) +
+	geom_col(color = "black") +
+	scale_y_continuous(labels = label_number_auto()) +
+	# scale_fill_brewer(palette = "Set2") +
+	coord_flip() +
+	theme_light() +
+	theme(
+		# axis.text.x = element_text(angle = 90)
+	) +
+	labs(
+		title = "Mutation burden by sample",
+		# subtitle = "",
+		x = NULL,
+		fill = if (exists("tmb_barplot_fill", where = params)) {
+			params$tmb_barplot_fill
+		},
+		caption = "Not normalized for sequencing target size (mut/Mb)"
+	)
+p_tmb_barplot
+ggsave(filename = paste0(dir_results_plots_tmb, "/tmb-barplot.pdf"),
+	   plot = p_tmb_barplot,
+	   # height = 6,
+	   # width = 0.2 * nrow(t_infoTable_join),
+	   width = 6,
+	   height = 0.2 * nrow(t_infoTable_join),
+	   limitsize = F)
+
+# plot condensed barplot if sample n is large
+if (nrow(t_infoTable_join) > 30) {
+	p_tmb_barplot_condensed = p_tmb_barplot +
+		theme(
+			axis.title.y = element_blank(),
+	        axis.text.y = element_blank(),
+	        axis.ticks.y = element_blank()
+		) +
+		labs(subtitle = "Condensed view")
+		# theme_void()
+	print(p_tmb_barplot_condensed)
+	# save condensed plot
+	ggsave(filename = paste0(dir_results_plots_tmb, "/tmb-barplot-condensed.pdf"),
+		   plot = p_tmb_barplot_condensed,
+		   # height = 6,
+		   # width = 0.03 * nrow(t_infoTable_join),
+		   width = 6,
+		   height = 0.03 * nrow(t_infoTable_join),
+		   limitsize = F)
+}
+```
+
+
+
+Plot TMB boxplot to compare groups if specified in params:
+```{r TMB boxplot, message=F}
+if (exists("tmb_box_var_x", where = params)) {
+	# filter input data if indicated
+	if (exists("tmb_box_var_subset", where = params)) {
+		t_tmb_box_input = t_infoTable_join %>%
+			filter(get(params$tmb_box_var_subset) == params$tmb_box_var_subset_value)
+	} else {
+		t_tmb_box_input = t_infoTable_join
+	}
+	
+	# TODO: conditional if tmb_box_var_x is defined, otherwise default plot all samples on same boxplot
+	p_tmb_box = t_tmb_box_input %>%
+		ggplot(aes(
+			x = as.factor(get(params$tmb_box_var_x)),
+			y = TMB,
+			fill = if (exists("tmb_box_var_fill", where = params)) {
+				as.factor(get(params$tmb_box_var_fill))
+			}
+		)) +
+		geom_boxplot(width = 0.5, outlier.colour = "red") +
+		geom_jitter(aes(
+			color = if (exists("tmb_box_var_color", where = params)) {
+				as.factor(get(params$tmb_box_var_color))
+			}
+		), width = 0.2, alpha = 0.5) +
+		scale_y_log10(labels = label_number_auto()) +
+		scale_fill_brewer(palette = "Pastel1") +
+		scale_color_brewer(palette = "Set1") +
+		theme_light() +
+		labs(title = paste0("Mutation Burden vs. ",
+							params$tmb_box_var_x),
+			 subtitle = if (exists("tmb_box_var_subset", where = params)) {
+			 	paste0("Filtered for: ",
+			 		   params$tmb_box_var_subset,
+			 		   " = ",
+			 		   as.character(params$tmb_box_var_subset_value))
+			 },
+			 x = params$tmb_box_var_x,
+			 y = "TMB",
+			 fill = params$tmb_box_var_fill,
+			 color = params$tmb_box_var_color)
+	print(p_tmb_box)
+	
+	# save plot
+	ggsave(filename = paste0(dir_results_plots_tmb,
+							 "/tmb-boxplot.pdf"),
+		   width = 6,
+		   height = 4)
+} else {
+	# make boxplot all in one grouping
+	
+	# filter input data if indicated
+	if (exists("tmb_box_var_subset", where = params)) {
+		t_tmb_box_input = t_infoTable_join %>%
+			filter(get(params$tmb_box_var_subset) == params$tmb_box_var_subset_value)
+	} else {
+		t_tmb_box_input = t_infoTable_join
+	}
+
+	t_tmb_box_input %>%
+		ggplot(aes(x = 0, y = TMB)) +
+		geom_boxplot(fill = "lightblue") +
+		geom_jitter(width = 0.2, alpha = 0.5) +
+		# scale_x_continuous(limits = c(-0.5, 0.5)) +
+		scale_x_continuous(limits = c(-1, 1)) +
+		scale_y_continuous(labels = label_number_auto()) +
+		# scale_y_log10(labels = label_number_auto()) +
+		theme_light() +
+		theme(axis.text.x = element_blank()) +
+		labs(title = "Mutation counts",
+			 subtitle = if (exists("out_optID", where = params)) {params$out_optID},
+			 y = "No. of mutations",
+			 x = NULL)
+}
+```
+
+	# stat_summary(fun = mean,
+	# 			 geom = "point",
+	# 			 shape = 21, fill = "white", color = "black", size = 2, stroke = 1) +
+
+Perform a t-test for difference in means between 2 groups (if indicated):
+
+```{r TMB boxplot ttest}
+# perform t-test if indicated (only use if comparing 2 groups)
+if (params$tmb_box_ttest) {
+	print(
+		p_tmb_box +
+			stat_compare_means(method = "t.test",
+							   label.x.npc = 0.4,
+							   # label.y.npc = 1,
+							   label.y = log10(1.2*max(t_tmb_box_input$TMB))) +
+							   # comparisons = params$tmb_box_group_comparisons,
+							   # label = "p.format")
+			stat_compare_means(method = "t.test",
+							   comparisons = params$tmb_box_group_comparisons,
+							   label = "p.signif")
+	)
+	# save plot
+	ggsave(filename = paste0(dir_results_plots_tmb,
+							 "/tmb-boxplot-ttest.pdf"),
+		   width = 6,
+		   height = 4)
+}
+```
+
+Perform ANOVA for difference in means on >2 groups (if indicated):
+
+```{r TMB boxplot ANOVA}
+# perform anova if indicated (use with >2 groups)
+if (params$tmb_box_anova) {
+	print(
+		p_tmb_box +
+			stat_compare_means(method = "anova")
+							   # label.x.npc = 0.5,
+							   # label.y.npc = 1)
+							   # comparisons = params$tmb_box_group_comparisons)
+	)
+	# save plot
+	ggsave(filename = paste0(dir_results_plots_tmb,
+							 "/tmb-boxplot-anova.pdf"),
+		   width = 6,
+		   height = 4)
+}
+```
+
+
+```{r TMB boxplot multitest}
+# TODO
+# perform multiple comparisons test (always use after ANOVA?)
+if (params$tmb_box_multitest) {
+	print(
+		p_tmb_box +
+			stat_compare_means(method = "t.test",
+							   comparisons = params$tmb_box_group_comparisons) +
+			stat_compare_means(method = "anova",
+							   label.y.npc = "top",
+							   label.x.npc = "left")
+	)
+	# save plot
+	ggsave(filename = paste0(dir_results_plots_tmb,
+							 "/tmb-boxplot-multicompare.pdf"),
+		   width = 6,
+		   height = 4)
+}
+```
+
+
+## old tmb
+<!-- # if (exists("v_tmbFacetVar", where = params)) { -->
+<!-- # 	if(nrow(t_infoTable_join) < 20) { -->
+<!-- # 		p_tmb = t_infoTable_join %>% -->
+<!-- # 			ggplot(aes(x = sample_name, -->
+<!-- # 					   y = TMB, -->
+<!-- # 					   fill = get(params$v_tmbFacetVar), -->
+<!-- # 					   label = as.character(TMB))) + -->
+<!-- # 			geom_col() + -->
+<!-- # 			geom_text(size = 3, vjust = -1, color = "white") + -->
+<!-- # 			facet_grid(. ~ get(params$v_tmbFacetVar), -->
+<!-- # 					   scales = "free") + -->
+<!-- # 			scale_y_continuous(limits = c(0, (1.1*max(t_infoTable_join$TMB)))) -->
+<!-- # 	} else { -->
+<!-- # 		p_tmb = t_infoTable_join %>% -->
+<!-- # 			ggplot(aes(x = sample_name, -->
+<!-- # 					   y = TMB, -->
+<!-- # 					   fill = get(params$v_tmbFacetVar), -->
+<!-- # 					   label = as.character(TMB))) + -->
+<!-- # 			geom_col() + -->
+<!-- # 			facet_grid(. ~ get(params$v_tmbFacetVar), -->
+<!-- # 					   scales = "free") + -->
+<!-- # 			scale_y_continuous(limits = c(0, (1.1*max(t_infoTable_join$TMB)))) + -->
+<!-- # 			theme(axis.text.x = element_blank()) -->
+<!-- # 		 -->
+<!-- # 	} -->
+<!-- # } else { -->
+<!-- # 	p_tmb = t_infoTable_join %>% -->
+<!-- # 		ggplot(aes(x = sample_name, y = TMB)) + -->
+<!-- # 		geom_col(fill = "white", col = "black") -->
+<!-- # } -->
+<!-- #  -->
+<!-- # p_tmb = p_tmb + -->
+<!-- # 	myggthemedark +  -->
+<!-- # 	# theme(axis.text.x = element_text(angle = 90), -->
+<!-- # 		  # legend.position = "right") + -->
+<!-- # 	labs(title = "Tumor Mutation Burden by Sample", -->
+<!-- # 		 x = "Sample", -->
+<!-- # 		 y = "TMB", -->
+<!-- # 		 fill = params$v_tmbFacetVar) -->
+<!-- # p_tmb -->
+<!-- # # save plot -->
+<!-- # # FIXME: fix fonts crashing the save to PDF format -->
+<!-- # sink(ggsave(filename = paste0(dir_results_plots, "/sample-TMB.png"), -->
+<!-- # 	   plot = p_tmb)) -->
+
+<!-- Plot per-group TMB (boxplot): -->
+<!-- ```{r plot per group tmb} -->
+<!-- if (exists("v_tmbFacetVar", where = params)) { -->
+<!-- 	p_tmb_group = t_infoTable_join %>% -->
+<!-- 		ggplot(aes(x = genotype, -->
+<!-- 				   y = TMB, -->
+<!-- 				   fill = get(params$v_tmbFacetVar))) + -->
+<!-- 		geom_boxplot(color = "white", outlier.size = 0) + -->
+<!-- 		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black") -->
+<!-- } else { -->
+<!-- 	p_tmb_group = t_infoTable_join %>% -->
+<!-- 		ggplot(aes(x = genotype, y = TMB)) + -->
+<!-- 		geom_boxplot(outlier.size = 0, ) + -->
+<!-- 		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black") -->
+<!-- } -->
+
+<!-- p_tmb_group = p_tmb_group + -->
+<!-- 	myggthemedark + -->
+<!-- 	theme(legend.position = "right") + -->
+<!-- 	labs(title = "Tumor Mutation Burden by Sample", -->
+<!-- 		 x = "Sample", -->
+<!-- 		 y = "TMB", -->
+<!-- 		 fill = "_____") -->
+<!-- p_tmb_group -->
+<!-- # save plot -->
+<!-- ggsave(filename = paste0(dir_results_plots, "/group-TMB.png")) -->
+<!-- ``` -->
+
+## 2. VAF Distribution
+
+Load all the VCF body TSVs into R as a list of tables:
+```{r load vcf body tables, message=FALSE, include=FALSE}
+# initialize empty list to hold tables
+l_vcfBodyTables = list()
+
+# loop through list of body table filepaths and add each table to the list
+for (i in 1:length(v_vcfBodyTsvFilepaths)) {
+
+	# make full TSV filepath
+	iVcfBodyTsvPath = paste0(dir_tmp, "/vcfs/", v_vcfBodyTsvFilepaths[i])
+
+	# load the TSV into the list as an element
+	l_vcfBodyTables[[basename(iVcfBodyTsvPath)]] = read_tsv(iVcfBodyTsvPath)
+
+	# TODO: add flanking nucleotides
+}
+```
+
+## Determine peaks in VAF density distribution
+
+(Adapted from [Finding Peak Values For a Density Distribution](http://ianmadd.github.io/pages/PeakDensityDistribution.html) by Ian Maddis)
+
+- Numerically fit a curve to VAF density distribution
+- get local maxima (i.e. peaks): d/dx = 0
+- set cutoff surrounding peaks: |d/dx| < 0.5 (?)
+
+
+## Plot VAF histograms and density plots
+
+Loop through VCF body tables and plot histograms and density plots of the variant allele frequencies (VAFs):
+```{r plot vaf histos}
+# TODO: add total mut # to histo/density
+# TODO: add plots to a list as objects to use for combining with grid.arrange or something
+
+# make empty list to store plot objects
+l_vaf_histo_plots = list()
+l_vaf_density_plots = list()
+	
+for (i in 1:length(l_vcfBodyTables)) {
+
+	# print element name for testing
+	tableName = print(names(l_vcfBodyTables[i]))
+
+	# assign table as iter variable
+	vcfBodyTable = l_vcfBodyTables[[i]]
+
+	# operate differently on Varscan vs Mutect VCF tables
+	if (params$varscan_or_mutect == "varscan") {
+		# transform to get the VAF values from the Varscan 'FREQ' FORMAT field
+		formatTableVarscan = vcfBodyTable %>%
+			# select only FORMAT fields for the TUMOR sample
+			select(11) %>%
+			# split the fields by the ':' separator into new columns
+			separate(col = 1,
+					 into = c("GT", "GQ", "DP", "RD", "AD", "FREQ", "DP4"),
+					 sep = ":") %>%
+			# remove the '%' sign from the VAF values and convert to numeric type
+			mutate(FREQ = as.numeric(str_replace(string = FREQ, pattern = "%", replacement = "")))
+		
+		# plot a HISTOGRAM of varscan FREQ VAF values
+		p_histo = ggplot(data = formatTableVarscan) +
+			aes(x = FREQ) +
+			# 	fill = if (exists("vaf_var_fill", where = params)) {
+			# 	as.factor(get(params$vaf_var_fill))
+			# }) +
+			geom_histogram(fill = "gray50",
+						   color = "black") +
+			scale_x_continuous(limits = c(0,100)) +
+			theme_light() +
+			# theme(
+			# 	legend.position = "none" # for param-based fill coloring
+			# ) +
+			labs(title = "Distribution of Variant Allele Frequencies (VAF)",
+				 subtitle = str_replace(string = tableName,
+							 			pattern = "\\..+",
+							 			replacement = ""),
+				 x = "VAF (%)",
+				 y = "Count")
+		# add plot to histo list
+		l_vaf_histo_plots[[i]] = p_histo
+		
+		# plot and save single plots if indicated in params
+		if (params$vaf_plot_singles) {
+			print(p_histo)
+			# save histogram plot
+			ggsave(filename = paste0(dir_results_plots_vafHisto,
+									 "/VAFHisto-varscan-",
+									 str_replace(string = tableName,
+									 			pattern = "\\..+",
+									 			replacement = ""),
+									 ".png"))
+		}
+
+		# plot a DENSITY plot of varscan FREQ VAF values
+		p_density = ggplot(data = formatTableVarscan) +
+			aes(x = FREQ) +
+			# 	fill = if (exists("vaf_var_fill", where = params)) {
+			# 	as.factor(get(params$vaf_var_fill))
+			# }) +
+			geom_density(fill = "gray80") +
+			scale_x_continuous(limits = c(0,100)) +
+			theme_light() +
+			# theme(
+			# 	legend.position = "none" # for param-based fill coloring
+			# ) +
+			labs(title = "Distribution of Variant Allele Frequencies (VAF)",
+				 subtitle = str_replace(string = tableName,
+							 			pattern = "\\..+",
+							 			replacement = ""),
+				 x = "VAF (%)",
+				 y = "Density")
+		# add plot to density plot list
+		l_vaf_density_plots[[i]] = p_density
+		
+		# plot and save single plots if indicated in params
+		if (params$vaf_plot_singles) {
+			print(p_density)
+			# save density plot
+			ggsave(filename = paste0(dir_results_plots_vafDens,
+									 "/VAFdensity-varscan-",
+									 str_replace(string = tableName,
+									 			pattern = "\\..+",
+									 			replacement = ""),
+									 ".png"))
+		}
+		
+	} else if (params$varscan_or_mutect == "mutect") {
+		# TODO: implement mutect files
+	# 	# transform data to get the VAF values from Mutect2 'AF' FORMAT field
+	# 	formatTableMutect = vcfBodyTable %>%
+	# 		# select only FORMAT fields for the TUMOR sample
+	# 		select(11) %>%
+	# 		# split the fields by the ':' separator into new columns
+	# 		separate(col = 1,
+	# 				 into = c("GT", "AD", "AF", "DP", "F1R2", "F2R1", "SB"),
+	# 				 sep = ":")
+	# 	
+	# 	# plot histogram of mutect AF values
+	# 		print(
+	# 			ggplot(data = formatTableMutect) +
+	# 				# TRANSFER & ADAPT CODE FROM VARSCAN SECTION HERE
+	# 		)
+	}
+}
+```
+
+Arrange histograms and density plots in a grid for easier viewing (adapted from [StackOverflow](https://stackoverflow.com/a/10706828/8207782)):
+```{r grid histo and dens plots}
+# histograms
+n_histo = length(l_vaf_histo_plots)
+nCol_histo = floor(sqrt(n_histo))
+p_grid_vaf_histo = do.call("grid.arrange", c(l_vaf_histo_plots, ncol = nCol_histo))
+
+# save histo grid
+pdf(file = paste0(dir_results_plots_vafHisto, "/01--grid-histo.pdf"),
+	width = 6*nCol_histo,
+	height = 4*nCol_histo)
+p_grid_vaf_histo = do.call("grid.arrange", c(l_vaf_histo_plots, ncol = nCol_histo))
+dev.off()
+
+# density plots
+n_dens = length(l_vaf_density_plots)
+nCol_dens = floor(sqrt(n_dens))
+p_grid_vaf_dens = do.call("grid.arrange", c(l_vaf_density_plots, ncol = nCol_dens))
+
+# save histo grid
+pdf(file = paste0(dir_results_plots_vafDens, "/01--grid-dens.pdf"),
+	width = 6*nCol_dens,
+	height = 4*nCol_dens)
+p_grid_vaf_dens = do.call("grid.arrange", c(l_vaf_density_plots, ncol = nCol_dens))
+dev.off()
+```
+
+# Session Info
+
+```{r save session data}
+# save data image
+save.image(file = paste0(dir_results, "/data.Rdata"))
+
+# save session info
+write_lines(capture.output(sessionInfo()),
+            path = paste0(dir_results, "/sessionInfo.txt"))
+```

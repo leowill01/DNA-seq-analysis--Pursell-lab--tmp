@@ -1,0 +1,2368 @@
+commit b26c141c68524f1feca10a42a922adf22433e8ce
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 19:32:29 2020 -0500
+
+    Edit cos sim section
+    
+    Add calc for mean cos sim across samples.
+    Add coord flip to plots.
+    Adjust plot dims.
+    Edit chunk names for pairwise calc and plot.
+
+diff --git a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+index 0c081b5..be26c9d 100644
+--- a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
++++ b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+@@ -1562,6 +1562,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 			calcCosineSimilarities(mut_mat = mutMatMouse,
+ 								   de_novo_nmf_res = deNovoNMFResMouse,
+ 								   species = "mouse")
++			cosSimDeNovoOrigReconMouse_mean = mean(cosSimDeNovoOrigReconMouse$cos_sim)
+ 		}
+ 
+ 		# human
+@@ -1569,6 +1570,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 			calcCosineSimilarities(mut_mat = mutMatHuman,
+ 								   de_novo_nmf_res = deNovoNMFResHuman,
+ 								   species = "human")
++			cosSimDeNovoOrigReconHuman_mean = mean(cosSimDeNovoOrigReconHuman$cos_sim)
+ 		}
+ 
+ 		# multispp
+@@ -1576,6 +1578,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 			calcCosineSimilarities(mut_mat = mutMatMultispp,
+ 								   de_novo_nmf_res = deNovoNMFResMultispp,
+ 								   species = "multispp")
++			cosSimDeNovoOrigReconMultispp_mean = mean(cosSimDeNovoOrigReconMultispp$cos_sim)
+ 		}
+ 	}
+ } else {
+@@ -1617,44 +1620,48 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	if (params$isMultispp) {
+ 		# mouse
+ 		if (exists("cosSimDeNovoOrigReconMouse")) {
+-			print(plotCosSim(cosSimDeNovoOrigReconMouse, speciesSubtitle = "Mouse"))
++			print(plotCosSim(cosSimDeNovoOrigReconMouse, speciesSubtitle = "Mouse") +
++				  	coord_flip())
+ 		    # Save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf,
+ 		    						 "/13--deNovoCosSim-mouse.pdf"),
+-		           height = 6,
+-		           width = (6 + (.1 * nrow(cosSimDeNovoOrigReconMouse))),
++		           height = 6 + (0.1 * nrow(cosSimDeNovoOrigReconMouse)),
++		           width = 6,
+ 		           limitsize = F)
+ 		}
+ 
+ 		# human
+ 		if (exists("cosSimDeNovoOrigReconHuman")) {
+-			print(plotCosSim(cosSimDeNovoOrigReconHuman, speciesSubtitle = "Human"))
++			print(plotCosSim(cosSimDeNovoOrigReconHuman, speciesSubtitle = "Human") +
++				  	coord_flip())
+ 		    # Save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf,
+ 		    						 "/13--deNovoCosSim-human.pdf"),
+-		           height = 6,
+-		           width = (6 + (.1 * nrow(cosSimDeNovoOrigReconHuman))),
++		           height = 6 + (0.1 * nrow(cosSimDeNovoOrigReconHuman)),
++		           width = 6,
+ 		           limitsize = F)
+ 		}
+ 
+ 		# multispp
+ 		if (exists("cosSimDeNovoOrigReconMultispp")) {
+-			print(plotCosSim(cosSimDeNovoOrigReconMultispp, "Multispecies"))
++			print(plotCosSim(cosSimDeNovoOrigReconMultispp, "Multispecies") +
++				  	coord_flip())
+ 		    # Save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf,
+ 		    						 "/13--deNovoCosSim-multispp.pdf"),
+-		           height = 6,
+-		           width = (6 + (.1 * nrow(cosSimDeNovoOrigReconMultispp))),
++		           height = 6 + (.1 * nrow(cosSimDeNovoOrigReconMultispp)),
++		           width = 6,
+ 		           limitsize = F)
+ 		}
+ 	}
+ } else {
+-	print(plotCosSim(cos_sim_denovo_ori_rec, "Multispecies"))
++	print(plotCosSim(cos_sim_denovo_ori_rec, "Multispecies") +
++		  	coord_flip())
+ 		    # Save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf,
+ 		    						 "/13--deNovoCosSim.pdf"),
+-		           height = 6,
+-		           width = (6 + (.1 * nrow(cos_sim_denovo_ori_rec))),
++		           height = 6 + (0.1 * nrow(cos_sim_denovo_ori_rec)),
++		           width = 6,
+ 		           limitsize = F)
+ }
+ ```
+@@ -1748,7 +1755,7 @@ Calculate the cosine similarity between a sample mutation matrix and one COSMIC
+ 
+ Calculate pairwise cosine similarity between the samples' mutation spectra and COSMIC signatures:
+ 
+-```{r COSMIC pairwise cos sim}
++```{r calc COSMIC pairwise cos sim}
+ # # calculate cosine similarities
+ # if (params$isMultispp) {
+ # 	# mouse
+@@ -1772,7 +1779,7 @@ Calculate pairwise cosine similarity between the samples' mutation spectra and C
+ 
+ Plot the cosine similarities to COSMIC signatures in a heatmap:
+ 
+-```{r COSMIC pairwise cos sim}
++```{r plot COSMIC pairwise cos sim}
+ # # define function to plot COSMIC pairwise cos sim heatmap
+ # plotCOSMICCosSimHeatmap = function(speciesName, cos_sim_samples_signatures) {
+ # 	# save pheatmap fig
+@@ -1867,7 +1874,7 @@ if (params$isMultispp) {
+ 
+ Plot the optimal contribution of the COSMIC signatures in each sample as a stacked barplot.
+ ***[DISABLED: LESS USEFUL THAN DESC STATS PLOT]***
+-```{r select cosmic contributions}
++```{r plot cosmic contributions}
+ # # define function to select contributing mutations and plot the numbers
+ #
+ #
+
+commit 34fabd25d43785f5fd51b211375cf0b1d92b54ee
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:49:15 2020 -0500
+
+    Clean up heatmap sections
+    
+    Rm custom pheatmap func.
+    Fix alignments and whitespace.
+
+diff --git a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+index 4d03d4a..0c081b5 100644
+--- a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
++++ b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+@@ -1213,31 +1213,6 @@ if (params$isMultispp) {
+ 
+ Plot NMF signature contributions with `pheatmap`:
+ 
+-Disable custom function because `pheatmap` doesn't play nice.
+-<!-- ```{r define custom de novo heatmap func} -->
+-<!-- # define function to plot contrib heatmap -->
+-<!-- plotNMFSigContribCustom = function(nmf_res_contrib_norm, -->
+-<!-- 								   speciesName = NULL, -->
+-<!-- 								   show_rownames = T, -->
+-<!-- 								   annotation_row = NA, -->
+-<!-- 								   annotation_colors = NA) { -->
+-<!-- 	    pheatmap(mat = nmf_res_contrib_norm, -->
+-<!-- 	             cluster_rows = T, cluster_cols = F, -->
+-<!-- 	             clustering_method = "complete", -->
+-<!-- 	    		 annotation_row = annotation_row, -->
+-<!-- 	    		 annotation_colors = annotation_colors, -->
+-<!-- 	            #  cutree_rows = if ((exists("pheat_cutree_rows_denovo", where = params))) { -->
+-<!-- 	            # 	params$pheat_cutree_rows_denovo -->
+-<!-- 	            #  } else {NA}, -->
+-<!-- 	             treeheight_row = 100, -->
+-	    <!--          main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n", -->
+-	    <!--          			  "(", speciesName, ")"), -->
+-	    <!--          angle_col = 90, -->
+-	    <!-- 		 display_numbers = F, show_rownames = show_rownames) -->
+-<!-- } -->
+-<!-- ``` -->
+-
+-
+ ```{r plot de novo pheatmap}
+ # FIXME: multiple inline plots will not output at the same time. plot all at once at the end? new chunk just for plotting?
+ 
+@@ -1247,6 +1222,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		if (exists("deNovoNMFResMouse")) {
+ 			# save large heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_mouse,
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+ 					 annotation_row = annotations_mouse,
+ 					 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+@@ -1256,10 +1232,10 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 angle_col = 90,
+ 					 display_numbers = F,
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--mouse.pdf"),
+-			        width = (6 + 
+-			        		 	1 * ncol(nmf_res_contrib_norm_mouse)),
+-			        height = (6 +
+-			        		  	0.1 * nrow(nmf_res_contrib_norm_mouse) +
++					 width = (6 +
++					 		 	1 * ncol(nmf_res_contrib_norm_mouse)),
++					 height = (6 +
++					 		  	0.1 * nrow(nmf_res_contrib_norm_mouse) +
+ 					 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+ 	# 		# print large inline
+ 	# 		pheatmap(mat = nmf_res_contrib_norm_mouse,
+@@ -1271,9 +1247,10 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	#              			  "(Mouse)"),
+ 	# 				 angle_col = 90,
+ 	# 				 display_numbers = F)
+-				
++
+ 			# save small heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_mouse,
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+ 					 annotation_row = annotations_mouse,
+ 					 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+@@ -1284,11 +1261,11 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 display_numbers = F,
+ 					 show_rownames = F,
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--mouse.pdf"),
+-			        width = (6 + 
++					 width = (6 +
+ 			        		 	1 * ncol(nmf_res_contrib_norm_mouse)),
+-			        height = (6 +
++					 height = (6 +
+ 			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+-			    
++
+ 	# 		# print small inline
+ 	# 		pheatmap(mat = nmf_res_contrib_norm_mouse,
+ 	# 				 cluster_cols = F,
+@@ -1306,6 +1283,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		if (exists("deNovoNMFResHuman")) {
+ 			# save large heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_human,
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+ 					 annotation_row = annotations_human,
+ 					 annotation_colors = params$info_table_cluster_categories_colors_human,
+@@ -1315,11 +1293,11 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 angle_col = 90,
+ 					 display_numbers = F,
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--human.pdf"),
+-			        width = (6 + 
+-			        		 	1 * ncol(nmf_res_contrib_norm_human)),
+-			        height = (6 +
+-			        		  	0.1 * nrow(nmf_res_contrib_norm_human) +
+-			        		  	0.2 * length(params$info_table_cluster_categories_colors_human)))
++					 width = (6 +
++					 		 	1 * ncol(nmf_res_contrib_norm_human)),
++					 height = (6 +
++					 		  	0.1 * nrow(nmf_res_contrib_norm_human) +
++					 		  	0.2 * length(params$info_table_cluster_categories_colors_human)))
+ 	# 		# print inline
+ 	# 		pheatmap(mat = nmf_res_contrib_norm_human,
+ 	# 				 cluster_cols = F,
+@@ -1330,11 +1308,13 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	#              			  "(Human)"),
+ 	# 				 angle_col = 90,
+ 	# 				 display_numbers = F)
+-			
++
+ 			# save small heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_human,
++					 # color = colorRampPalette(c("blue", "cyan", "white", "yellow", "red"))(100),
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+-										annotation_row = annotations_human,
++					 annotation_row = annotations_human,
+ 					 annotation_colors = params$info_table_cluster_categories_colors_human,
+ 					 treeheight_row = 100,
+ 					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+@@ -1343,9 +1323,9 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 display_numbers = F,
+ 					 show_rownames = F,
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--human.pdf"),
+-			        width = (6 + 
++					 width = (6 +
+ 			        		 	1 * ncol(nmf_res_contrib_norm_human)),
+-			        height = (6 +
++					 height = (6 +
+ 			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_human))))
+ 
+ 	# 		# print small inline
+@@ -1359,13 +1339,14 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	# 				 angle_col = 90,
+ 	# 				 display_numbers = F,
+ 	# 				 show_rownames = F)
+-			    
++
+ 		}
+ 
+ 		# multispp
+ 		if (exists("deNovoNMFResMultispp")) {
+ 			# save large heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_multispp,
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+ 					 annotation_row = annotations_multispp,
+ 					 annotation_colors = params$info_table_cluster_categories_colors,
+@@ -1375,11 +1356,11 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 angle_col = 90,
+ 					 display_numbers = F,
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap--multispp.pdf"),
+-			        width = (6 + 
+-			        		 	1 * ncol(nmf_res_contrib_norm_multispp)),
+-			        height = (6 +
+-			        		  	0.1 * nrow(nmf_res_contrib_norm_multispp) +
+-			        		  	0.2 * length(params$info_table_cluster_categories_colors)))
++					 width = (6 +
++					 		 	1 * ncol(nmf_res_contrib_norm_multispp)),
++					 height = (6 +
++					 		  	0.1 * nrow(nmf_res_contrib_norm_multispp) +
++					 		  	0.2 * length(params$info_table_cluster_categories_colors)))
+ 	# 		# print inline
+ 	# 		pheatmap(mat = nmf_res_contrib_norm_multispp,
+ 	# 				 cluster_cols = F,
+@@ -1390,11 +1371,12 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	#              			  "(Multispecies)"),
+ 	# 				 angle_col = 90,
+ 	# 				 display_numbers = F)
+-			
++
+ 			# save small heatmap
+ 			pheatmap(mat = nmf_res_contrib_norm_multispp,
++					 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 					 cluster_cols = F,
+-										annotation_row = annotations_multispp,
++					 annotation_row = annotations_multispp,
+ 					 annotation_colors = params$info_table_cluster_categories_colors,
+ 					 treeheight_row = 100,
+ 					 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution\n",
+@@ -1405,9 +1387,9 @@ if (params$extract_denovo_sigs == TRUE) {
+ 					 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap-small--multispp.pdf"),
+ 					 # width = 6,
+ 					 # height = 6)
+-			        width = (6 + 
++					 width = (6 +
+ 			        		 	1 * ncol(nmf_res_contrib_norm_multispp)),
+-			        height = (6 +
++					 height = (6 +
+ 			        		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+ 
+ 	# 		# print small inline
+@@ -1421,12 +1403,13 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	# 				 angle_col = 90,
+ 	# 				 display_numbers = F,
+ 	# 				 show_rownames = F)
+-			    
+-		}
++
+ 		}
+-	} else {
++	}
++} else {
+ 	# save large heatmap
+ 	pheatmap(mat = nmf_res_contrib_norm,
++			 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 			 cluster_cols = F,
+ 			 annotation_row = annotations,
+ 			 annotation_colors = params$info_table_cluster_categories_colors,
+@@ -1435,17 +1418,18 @@ if (params$extract_denovo_sigs == TRUE) {
+ 			 angle_col = 90,
+ 			 display_numbers = F,
+ 			 filename = paste0(results_dir_plots_nmf, "/10--deNovoNMFSigsContribHeatmap.pdf"),
+-	        width = (6 + 
+-	        		 	1 * ncol(nmf_res_contrib_norm)),
+-	        height = (6 +
+-	        		  	0.1 * nrow(nmf_res_contrib_norm) +
++			 width = (6 +
++			 		 	1 * ncol(nmf_res_contrib_norm)),
++			 height = (6 +
++			 		  	0.1 * nrow(nmf_res_contrib_norm) +
+ 			 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors))))
+-		
++
+ 	# save small heatmap
+ 	pheatmap(mat = nmf_res_contrib_norm,
++			 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 			 cluster_cols = F,
+-								annotation_row = annotations,
+-								annotation_colors = params$info_table_cluster_categories_colors,
++			 annotation_row = annotations,
++			 annotation_colors = params$info_table_cluster_categories_colors,
+ 			 treeheight_row = 100,
+ 			 main = paste0("Hierarchical Clustering of\nDe Novo NMF Mutation Signature Contribution"),
+ 			 angle_col = 90,
+@@ -2139,6 +2123,7 @@ if (params$isMultispp) {
+ 	if (exists("fitResCosmicCtbNormMouse")) {
+ 		# save large heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormMouse,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations_mouse,
+ 				 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+@@ -2156,6 +2141,7 @@ if (params$isMultispp) {
+ 
+ 		# save small heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormMouse,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations_mouse,
+ 				 annotation_colors = params$info_table_cluster_categories_colors_mouse,
+@@ -2170,12 +2156,13 @@ if (params$isMultispp) {
+ 				 		 	0.2 * ncol(fitResCosmicCtbNormMouse)),
+ 				 height = (6 +
+ 				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_mouse))))
+-		}
+-
++	}
++	
+ 	# human
+ 	if (exists("fitResCosmicCtbNormHuman")) {
+ 		# save large heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormHuman,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations_human,
+ 				 annotation_colors = params$info_table_cluster_categories_colors_human,
+@@ -2193,6 +2180,7 @@ if (params$isMultispp) {
+ 
+ 		# save small heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormHuman,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations_human,
+ 				 annotation_colors = params$info_table_cluster_categories_colors_human,
+@@ -2208,11 +2196,12 @@ if (params$isMultispp) {
+ 				 height = (6 +
+ 				 		  	0.15 * length(unlist(params$info_table_cluster_categories_colors_human))))
+ 	}
+-
++	
+ 	# multispp
+ 	if (exists("fitResCosmicCtbNormMultispp")) {
+ 		# save large heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormMultispp,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations_multispp,
+ 				 annotation_colors = params$info_table_cluster_categories_colors,
+@@ -2230,6 +2219,7 @@ if (params$isMultispp) {
+ 
+ 		# save small heatmap
+ 		pheatmap(mat = fitResCosmicCtbNormMultispp,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations,
+ 				 annotation_colors = params$info_table_cluster_categories_colors,
+@@ -2250,6 +2240,7 @@ if (params$isMultispp) {
+ 	if (exists("cosmic_res_contrib_norm")) {
+ 		# save large heatmap
+ 		pheatmap(mat = cosmic_res_contrib_norm,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations,
+ 				 annotation_colors = params$info_table_cluster_categories_colors,
+@@ -2266,6 +2257,7 @@ if (params$isMultispp) {
+ 
+ 		# save small heatmap
+ 		pheatmap(mat = cosmic_res_contrib_norm,
++				 # breaks = seq(from = 0, to = 1, by = 0.01),
+ 				 cluster_cols = F,
+ 				 annotation_row = annotations,
+ 				 annotation_colors = params$info_table_cluster_categories_colors,
+
+commit f70eeebc5d11b789cb78929769dcb18372b1bed4
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:39:13 2020 -0500
+
+    Init script for Mutect2 variant calling
+
+diff --git a/03--code/03--variant-calling-and-filtering/GATK-Mutect2/mutect2.sh b/03--code/03--variant-calling-and-filtering/GATK-Mutect2/mutect2.sh
+new file mode 100644
+index 0000000..61e752c
+--- /dev/null
++++ b/03--code/03--variant-calling-and-filtering/GATK-Mutect2/mutect2.sh
+@@ -0,0 +1,59 @@
++#!/usr/bin/env bash
++
++# title:
++# author:
++# date:
++
++#SBATCH --job-name=____	    				### Job name
++#SBATCH --output=Output_Log-____.log		### File to store output
++#SBATCH --error=Error_Log-____.err			### File to store error messages
++#SBATCH --qos=normal				    	### Quality of service queue
++#SBATCH --time=24:00:00						### Time limit in [days]-[hh]:[mm]:[ss]
++#SBATCH --nodes=1							### Nodes requested for job
++#SBATCH --ntasks-per-node=1 				### Number of tasks to be launched per node
++#SBATCH --cpus-per-task=1					### Number of cores per node requested. Max 20/node
++#SBATCH --mem=64G							### Memory requested for job. Max 64GB/node
++#SBATCH --mail-type=ALL
++#SBATCH --mail-user=____
++
++# IS BENCHMARKED: NO
++
++echo Start Job
++echo nodes: $SLURM_JOB_NODELIST
++echo job id: $SLURM_JOB_ID
++echo Number of tasks: $SLURM_NTASKS
++
++# USAGE ########################################
++
++#
++
++# ABOUT ########################################
++
++#
++
++# ARGUMENTS ########################################
++
++IN=$1
++OUT=$2
++
++# SETUP ########################################
++
++# Make timestamped dir for results output
++RESULTS_DIR="${OUT}/results--$(date +\%Y-\%m-\%d-%H%M%S)"
++mkdir $RESULTS_DIR
++
++# Make a copy of the script run and put it into the results dir
++SCRIPT_PATH=$(echo "$0")
++cp "$SCRIPT_PATH" "$RESULTS_DIR"
++
++# MAIN CODE ########################################
++
++## LOAD MODULES
++# module load samtools
++
++## RUN ANALYSIS
++
++echo "Hello World\!"
++
++# END ########################################
++echo "End"
+\ No newline at end of file
+
+commit fc6be88cf74f3276467354962cc6a7fcd32cac6b
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:38:57 2020 -0500
+
+    Init EDA script for ad hoc analysis of variants from Zac
+
+diff --git a/03--code/00--EDA/2020-09-15--trinucs-from-zacs-table-blinded-sample/2020-09-15--trinucs-from-zacs-table-blinded-sample.Rmd b/03--code/00--EDA/2020-09-15--trinucs-from-zacs-table-blinded-sample/2020-09-15--trinucs-from-zacs-table-blinded-sample.Rmd
+new file mode 100644
+index 0000000..72b75e9
+--- /dev/null
++++ b/03--code/00--EDA/2020-09-15--trinucs-from-zacs-table-blinded-sample/2020-09-15--trinucs-from-zacs-table-blinded-sample.Rmd
+@@ -0,0 +1,226 @@
++---
++title: 'Ad hoc: trinucleotide contexts from table'
++params:
++  in_table: '/Volumes/Pursell-Lab-HD/Pursell-lab/01--raw-data/01--internal/01--Pursell-lab/exploratory-data/variant-tables/2020-09-15--trinucs-for-LW-dataset.tsv'
++  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/00--EDA/2020-09-15--trinucs-from-zacs-table-blinded-sample'
++output:
++  html_notebook:
++    toc: yes
++    toc_float: yes
++---
++
++# About
++
++This is an ad-hoc script to get trinucleotide contexts for some sample variant tables sent to me by Zac. I made this script because I haven't refactored this functionality into the main descriptive stats script.
++
++# Setup
++
++```{r setup, results='hide'}
++library(MutationalPatterns)
++library(BSgenome.Mmusculus.UCSC.mm10)
++ref_genome = BSgenome.Mmusculus.UCSC.mm10
++library(BSgenome)
++library(Biostrings)
++library(tidyverse)
++```
++
++# Load data
++
++Show parameters:
++
++```{r show params}
++params
++```
++
++
++```{r load variants table}
++t_variants = read_tsv(params$in_table)
++t_variants
++```
++
++# Data wrangling
++
++Make a nested data frame by grouping the variants per sample:
++
++```{r nested df by sample}
++tn_variants = t_variants %>%
++	group_by(`Sample Name`) %>%
++	nest()
++# view the structure of the per-sample variant tables
++tn_variants
++```
++
++View each sample's variant tables:
++
++```{r view variant tables}
++for (i in 1:nrow(tn_variants)) {
++	# print(paste0("Sample ", tn_variants$`Sample Name`[[i]]))
++	print(tn_variants$data[i] %>% head())
++}
++```
++
++# Data analysis
++
++Define function to transform a DNA sequence into its complement:
++
++```{r fun comp DNA}
++revComplementDNA = function(nt_string) {
++	if (str_detect(string = nt_string,
++				   pattern = "T|C|G|A|t|c|g|a",
++				   negate = T)) {
++		stop("Non-DNA letters detected")
++	}
++	
++	# replace nucleotides with reverse complements
++	# get complement
++	chartr(old = "TCGAtcga", new = "AGCTagct", x = nt_string) %>%
++		reverse()
++}
++```
++
++
++For every sample's variant table, add a column with the trinucleotide context surrounding the REF nucleotide:
++
++```{r define and test mut context func}
++# define function
++addMutContext = function(df_variants) {
++	if (nrow(df_variants) > 0) {
++		# df = df %>%
++		df_variants %>%
++			# 1. remove all indels
++			filter(!(str_length(Ref) > 1 | str_length(Alt) > 1)) %>%
++			# 2. add trinuclotide context and mutation type
++			mutate(context_3NT = getSeq(
++				x = ref_genome,
++				names = Chr,
++				start = Pos - 1,
++				end = Pos + 1,
++				as.character = T
++			)) %>%
++			# 3. add 21-nucleotude context
++			mutate(context_21NT = getSeq(
++				x = ref_genome,
++				names = Chr,
++				start = Pos - 10,
++				end = Pos + 10,
++				as.character = T
++			)) %>%
++			# 4. transform all bases to 6 canonical mutations format
++			# mutate Alt and contexts before Ref bc the conditional is based on Ref. mutate it last.
++			mutate(Alt = ifelse(
++				test = Ref %in% c("G", "A"),
++				yes = revComplementDNA(Alt),
++				no = Alt
++			)) %>%
++			mutate(context_3NT = ifelse(
++				test = Ref %in% c("G", "A"),
++				yes = revComplementDNA(context_3NT),
++				no = context_3NT
++			)) %>%
++			mutate(context_21NT = ifelse(
++				test = Ref %in% c("G", "A"),
++				yes = revComplementDNA(context_21NT),
++				no = context_21NT
++			)) %>%
++			# mutate Ref last
++			mutate(Ref = ifelse(
++				test = Ref %in% c("G", "A"),
++				yes = revComplementDNA(Ref),
++				no = Ref
++			)) %>%
++			# mutate(
++			# 	across(.cols = c(Ref, Alt, context_3NT, context_21NT),
++			# 		   .fns =  if (Ref %in% c("G", "A")) revComplementDNA)
++			# ) %>%
++			# 5. add col for standard depiction of mut type
++			mutate(mut_type_3NT = paste0(
++				Ref, ">", Alt, ":", context_3NT
++			)) %>%
++			select(Chr, Pos, Ref, Alt, context_3NT, mut_type_3NT, context_21NT)
++	}
++}
++
++# # sample function with 1 df
++# # test df - sample A
++# df_test_var_table = tn_variants$data[[1]]
++# 		
++# # test function
++# df_test_var_table
++# df_test_var_table %>%
++# 	addMutContext()
++# df_test_var_table %>%
++# 	addMutContext() %>%
++# 	count(mut_type_3NT)
++# df_test_var_table %>%
++# 	addMutContext() %>%
++# 	count(mut_type_3NT) %>%
++# 	ggplot() +
++# 	aes(x = mut_type_3NT, y = n) +
++# 	geom_col() +
++# 	theme_light() +
++# 	theme(
++# 		axis.text.x = element_text(angle = 90)
++# 	)
++
++```
++Use the `addMutContext()` function to add flanking nucleotide contexts to all samples:
++
++```{r add contexts to samples, warning=F}
++tn_variants$data_mut_context = map(.x = tn_variants$data, .f = addMutContext)
++```
++
++Save every sample's new table with mutation contexts as a TSV:
++
++```{r save mut context tables}
++# define save function
++saveMutContextTable = function(df, sample_name) {
++	write_tsv(x = df, path = paste0(params$out_dir, "/mut-context-table--sample-", sample_name, ".tsv"))
++}
++```
++
++Map function to save mut tables to every sample in the nested table:
++
++```{r map save function}
++map2(tn_variants$data_mut_context, tn_variants$`Sample Name`, saveMutContextTable)
++```
++
++<!-- Make plots of trinuc profiles: -->
++
++<!-- ```{r def plot mut profile} -->
++<!-- plotMutProfile = function(df_mut_context_table) { -->
++<!-- 	df_test_var_table %>% -->
++<!-- 		count(mut_type_3NT) %>% -->
++<!-- 		ggplot() + -->
++<!-- 		aes(x = mut_type_3NT, y = n) + -->
++<!-- 		geom_col() + -->
++<!-- 		theme_light() + -->
++<!-- 		theme( -->
++<!-- 			axis.text.x = element_text(angle = 90) -->
++<!-- 		) -->
++<!-- } -->
++<!-- ``` -->
++
++<!-- Plot and save mut profiles: -->
++
++<!-- ```{r plot mut profiles} -->
++<!-- tn_variants$mut_profile_plots = map(.x = tn_variants$data_mut_context, .f = plotMutProfile) -->
++
++<!-- map2(tn_variants$data_mut_context, tn_variants$`Sample Name`, saveMutContextTable) -->
++<!-- ``` -->
++
++
++# Session info
++
++Save session info and write data to file:
++
++```{r save session info and data}
++# save data image
++save.image(file = paste0(params$out_dir, "/data.Rdata"))
++
++# save session info
++write_lines(capture.output(sessionInfo()), 
++            path = paste0(params$out_dir, "/sessionInfo.txt"))
++
++```
++ 
++ 
+
+commit 044de6bd6fcc016e0736f7620939d0ba9483703e
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:38:35 2020 -0500
+
+    Rename dir for Varscan2 scripts
+
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.01--CNV-samtools-mpileup.sh b/03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.01--CNV-samtools-mpileup.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.01--CNV-samtools-mpileup.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.01--CNV-samtools-mpileup.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.02--varscan2-copynumber.sh b/03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.02--varscan2-copynumber.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.02--varscan2-copynumber.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.02--varscan2-copynumber.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.03--varscan2-copyCaller.sh b/03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.03--varscan2-copyCaller.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/01.03--varscan2-copyCaller.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/00--test/01.03--varscan2-copyCaller.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/02--CBS-DNAcopy-test.r b/03--code/03--variant-calling-and-filtering/Varscan2/00--test/02--CBS-DNAcopy-test.r
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/00--test/02--CBS-DNAcopy-test.r
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/00--test/02--CBS-DNAcopy-test.r
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference--sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference--sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference--sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference--sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference.sh b/03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01--varscan-BP1-variants-vs-reference.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01.01--batch-varscan-BP1-variants-vs-reference--sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01.01--batch-varscan-BP1-variants-vs-reference--sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01.01--batch-varscan-BP1-variants-vs-reference--sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/01.01--batch-varscan-BP1-variants-vs-reference--sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/02--combine-varscan-BP1-snp-indel-vars-vs-ref.sh b/03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/02--combine-varscan-BP1-snp-indel-vars-vs-ref.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/02--combine-varscan-BP1-snp-indel-vars-vs-ref.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/01--BP1-germline-var-calling-indiv-or-pooled/02--combine-varscan-BP1-snp-indel-vars-vs-ref.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort--sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort--sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort--sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort--sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort.sh b/03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/01--varscan2-call-germ-snp-cohort.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/02--Varscan-AP1-combineCohortGermSNV_InDel.sh b/03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/02--Varscan-AP1-combineCohortGermSNV_InDel.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/02--AP1-germline-var-calling-cohort/02--Varscan-AP1-combineCohortGermSNV_InDel.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/02--AP1-germline-var-calling-cohort/02--Varscan-AP1-combineCohortGermSNV_InDel.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal--sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal--sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal--sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal--sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal-minVAF005--sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal-minVAF005--sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal-minVAF005--sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01--Varscan-somaticSNVCalling-tumorNormal-minVAF005--sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01.01--batch-sbatch-VarscanSomaticMutations.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01.01--batch-sbatch-VarscanSomaticMutations.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01.01--batch-sbatch-VarscanSomaticMutations.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/01.01--batch-sbatch-VarscanSomaticMutations.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/02--Varscan-combineSomaticSNVIndel-tumorNormal.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/02--Varscan-combineSomaticSNVIndel-tumorNormal.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/02--Varscan-combineSomaticSNVIndel-tumorNormal.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/02--Varscan-combineSomaticSNVIndel-tumorNormal.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/01--samtools-mpileup/01--samtools-mpileup.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/01--samtools-mpileup/01--samtools-mpileup.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/01--samtools-mpileup/01--samtools-mpileup.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/01--samtools-mpileup/01--samtools-mpileup.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--concat-2-VCF-files.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--concat-2-VCF-files.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--concat-2-VCF-files.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--concat-2-VCF-files.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WES.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WES.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WES.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WES.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WGS.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WGS.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WGS.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02--varscan2-somatic-mode-WGS.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02.2--variant-counts-summary.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02.2--variant-counts-summary.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02.2--variant-counts-summary.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/02--varscan2-somatic-mode/02.2--variant-counts-summary.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-minVAF0.05.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-minVAF0.05.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-minVAF0.05.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-minVAF0.05.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic-sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/03--varscan2-processSomatic.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/test/03--varscan2-processSomatic-minVaf0-05.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/test/03--varscan2-processSomatic-minVaf0-05.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/test/03--varscan2-processSomatic-minVaf0-05.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/03--varscan2-processSomatic/test/03--varscan2-processSomatic-minVaf0-05.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-minVAF0.05.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-minVAF0.05.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-minVAF0.05.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-minVAF0.05.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-sbatch.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-sbatch.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-sbatch.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter-sbatch.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/test/04--varscan2-somaticFilter/04--varscan2-somaticFilter.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/xx--tum_norm-SNV-calling-Varscan2--filtering-only.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/xx--tum_norm-SNV-calling-Varscan2--filtering-only.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/xx--tum_norm-SNV-calling-Varscan2--filtering-only.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03--BP2-somatic-mut-calling-tumor-normal-pairs/xx--tum_norm-SNV-calling-Varscan2--filtering-only.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/03.01--cohort-variant-masking-BP2VsAP1/03--maskAP1CohortGermVarsFromTumor_FauxnormalSomaticMuts.sh b/03--code/03--variant-calling-and-filtering/Varscan2/03.01--cohort-variant-masking-BP2VsAP1/03--maskAP1CohortGermVarsFromTumor_FauxnormalSomaticMuts.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/03.01--cohort-variant-masking-BP2VsAP1/03--maskAP1CohortGermVarsFromTumor_FauxnormalSomaticMuts.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/03.01--cohort-variant-masking-BP2VsAP1/03--maskAP1CohortGermVarsFromTumor_FauxnormalSomaticMuts.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2-no_pipe.sh b/03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2-no_pipe.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2-no_pipe.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2-no_pipe.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2.sh b/03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/01--CNV-calling-samtools-varscan2.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/02--CBS-DNAcopy.r b/03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/02--CBS-DNAcopy.r
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/02--CBS-DNAcopy.r
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/05--AP2-somatic-CNA-calling-tumor-normal-pairs/02--CBS-DNAcopy.r
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/06--BP3-denovo-germline-mut-family-trio/01--trio_mpileup.sh b/03--code/03--variant-calling-and-filtering/Varscan2/06--BP3-denovo-germline-mut-family-trio/01--trio_mpileup.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/06--BP3-denovo-germline-mut-family-trio/01--trio_mpileup.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/06--BP3-denovo-germline-mut-family-trio/01--trio_mpileup.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.01--Varscan2/06--BP3-denovo-germline-mut-family-trio/02--trio_varscan.sh b/03--code/03--variant-calling-and-filtering/Varscan2/06--BP3-denovo-germline-mut-family-trio/02--trio_varscan.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.01--Varscan2/06--BP3-denovo-germline-mut-family-trio/02--trio_varscan.sh
+rename to 03--code/03--variant-calling-and-filtering/Varscan2/06--BP3-denovo-germline-mut-family-trio/02--trio_varscan.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.02--variant-filtering/00--format-Varscan-VCF-DP4-to-typeInt.sh b/03--code/03--variant-calling-and-filtering/variant-filtering/00--format-Varscan-VCF-DP4-to-typeInt.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.02--variant-filtering/00--format-Varscan-VCF-DP4-to-typeInt.sh
+rename to 03--code/03--variant-calling-and-filtering/variant-filtering/00--format-Varscan-VCF-DP4-to-typeInt.sh
+diff --git a/03--code/03--variant-calling-and-filtering/03.02--variant-filtering/01--DP4-read-filtering.sh b/03--code/03--variant-calling-and-filtering/variant-filtering/01--DP4-read-filtering.sh
+similarity index 100%
+rename from 03--code/03--variant-calling-and-filtering/03.02--variant-filtering/01--DP4-read-filtering.sh
+rename to 03--code/03--variant-calling-and-filtering/variant-filtering/01--DP4-read-filtering.sh
+
+commit e5d04b30adc243bf1a76447d18664bbd1556ac43
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:37:57 2020 -0500
+
+    Edit raw data, pre-processing
+
+diff --git a/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md b/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
+index 0fa6305..ebd3dfd 100644
+--- a/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
++++ b/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
+@@ -91,6 +91,12 @@ Use the following command to remove this flag when you need to add more raw data
+ sudo chflags -R noschg "$LOWEST_DIR_NEEDED_FOR_ACCESS"
+ ```
+ 
++## Make dataset README or table
++
++For each set of data direct from vendor or other source, e.g. a batch of sample sequences, make either a `README.tsv` table summarizing the data with categorical information. This includes sample names, filepaths, sample type (e.g. tumor, normal, mutant tissue), what type of sequencing (e.g. WGS, WES, TDS, bulk RNA), etc.
++
++For each dataset, add all info to master `README.tsv` under the data origin source. E.g. combine all individual raw data info tables into a separate master one that goes in the dir for the origin of similar data, like a specific lab.
++
+ ## Move Data to Working Directory, Format, and Label
+ 
+ - [ ] use sample naming key
+@@ -104,6 +110,13 @@ sudo chflags -R noschg "$LOWEST_DIR_NEEDED_FOR_ACCESS"
+ 
+ \newpage
+ 
++# Data Pre-processing
++
++Pre-processing of data follows the GATK Best Practices for data pre-processing for variant discovery.[@2020Datapreprocessingvariant].
++
++## GATK
++
++
+ 
+ # Map Reads to Reference Genome
+ 
+@@ -233,4 +246,11 @@ Make the following subdirectories inside the sample run directory:
+ 
+ ## Pathway analysis
+ 
+-### Gene set enrichment analysis (GSEA)
+\ No newline at end of file
++### Gene set enrichment analysis (GSEA)
++
++---
++
++\newpage
++
++# References
++
+
+commit 501f87171c80ebd3e9f5865c8498ca2ca670141b
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Wed Sep 16 18:35:43 2020 -0500
+
+    Update Sep 14-16, 2020
+
+diff --git a/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md b/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
+index d239d8b..c534811 100644
+--- a/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
++++ b/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
+@@ -167,6 +167,12 @@ I began reading the article [Data pre-processing for variant discovery](https://
+ 
+ The link to the GitHub repo describing the workflow is at: [gatk4-data-processing](https://github.com/gatk-workflows/gatk4-data-processing)
+ 
++## Sep 16, 2020
++
++I'm trying to find a detailed explanation of the analysis pipelines. So far I've only been able to find a general overview of the pipelines, for example like [this one](https://gatk.broadinstitute.org/hc/en-us/articles/360035535912-Data-pre-processing-for-variant-discovery) for data pre-processing. The [blog post about the new GATK setup](https://gatk.broadinstitute.org/hc/en-us/articles/360038154292-Welcome-to-the-new-home-of-GATK)[@2020Welcomenewhome] only mentions that they've tried to migrate everything over as best they can.
++
++
++
+ <a name="recent-general"></a>
+ 
+ ---
+@@ -1463,6 +1469,10 @@ Zac looked at my report and liked the analyses I did. Given that there was very
+ 
+ I also revisited the paper by Koboldt, et al. 2013[@2014KoboldtUsingVarScanGermline] which had some extra tips for calling low-VAF variants that I had not noticed the first time I read the paper. I'll have to think about how to implement some of those.
+ 
++## Sep 14, 2020
++
++I went back to the raw data and added a `README--raw-data-info.tsv` tables for each set of sequencing data for data integrity purposes. I updated the workflow doc to reflect that this step should be completed for any new data.
++
+ 
+ 
+ <a name="recent-brca1"></a>
+
+commit 5858eccfe78efc82cc6bdfccda6944115b18d5af
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 16:23:13 2020 -0500
+
+    Edit code body
+    
+    Edit annotation definitions.
+    Hide plot 96 profiles chunk output.
+    Add param for NMF nrun.
+    Add titles to & resize estimate plots.
+    Add titles to de novo sigs plots.
+
+diff --git a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+index 18166c2..4d03d4a 100644
+--- a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
++++ b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+@@ -216,12 +216,12 @@ Define sample annotations for heatmaps and subset by species if indicated:
+ ```{r define annotations}
+ # from input info table, define categorical annotations for plotting on pheatmaps
+ # define categorical annotations
+-	if (exists("info_table_cluster_categories", where = params)) {
+-		annotations = data.frame(
+-		    input_info_table[,params$info_table_cluster_categories],
+-		    row.names = input_info_table$sample_name
+-		    )
+-	}
++if (exists("info_table_cluster_categories", where = params)) {
++	annotations = data.frame(
++	    input_info_table[,params$info_table_cluster_categories],
++	    row.names = input_info_table$sample_name
++	    )
++}
+ 
+ # subset species-specific annotations if samples are multispp
+ if (params$isMultispp) {
+@@ -652,7 +652,7 @@ Make heatmap of trinucleotide mutation matrix
+ 
+ Plot the 96 profile of 5 arbitrary samples, e.g. samples 1, 3, 4, and 500.
+ 
+-```{r plot 96 profile, results='hide'}
++```{r plot 96 profile, include=FALSE, results='hide'}
+ # Define function to plot 96 mutation profiles while taking into account the max peak value for the y-axis
+ plot96ProfileCustom = function(mut_mat, sampleName = NULL) {
+ 
+@@ -802,7 +802,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		    						2:10
+ 		    					},
+ 		    					method = "brunet",
+-		    					nrun = 10,
++		    					nrun = params$extract_and_fit_nrun,
+ 		    					seed = 123456) # default
+ 	    }
+ 
+@@ -815,7 +815,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		    						2:10
+ 		    					},
+ 		    					method = "brunet",
+-		    					nrun = 10,
++		    					nrun = params$extract_and_fit_nrun,
+ 		    					seed = 123456) # default
+ 	    }
+ 
+@@ -828,7 +828,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		    						2:10
+ 		    					},
+ 		    					   method = "brunet",
+-		    					   nrun = 10,
++		    					   nrun = params$extract_and_fit_nrun,
+ 		    					   seed = 123456) # default
+ 	    }
+ 	} else {
+@@ -840,7 +840,7 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		    						2:10
+ 		    					},
+ 	    				   method = "brunet",
+-	    				   nrun = 10,
++	    				   nrun = params$extract_and_fit_nrun,
+ 	    				   seed = 123456) # default
+ 	    }
+ 	}
+@@ -854,31 +854,46 @@ if (params$extract_denovo_sigs == TRUE) {
+ 	if (params$isMultispp) {
+ 
+ 		# mouse
+-		if (exists("estimateMouse")){
+-		    print(plot(estimateMouse))
++		if (exists("estimateMouse")) {
++		    print(plot(estimateMouse,
++		    		   main = "NMF Rank Survey (Mouse)"))
+ 		    # save fig
+-		    ggsave(filename = paste0(results_dir_plots_nmf, "/05--NMFRankEstimate-mouse.pdf"), height = 10, width = 20)
++		    ggsave(filename = paste0(results_dir_plots_nmf,
++		    						 "/05--NMFRankEstimate-mouse.pdf"),
++		    	   height = 6,
++		    	   width = 12)
+ 		}
+ 
+ 		# human
+ 		if (exists("estimateHuman")) {
+-		    print(plot(estimateHuman))
++		    print(plot(estimateHuman,
++		    		   main = "NMF Rank Survey (Human)"))
+ 		    # save fig
+-		    ggsave(filename = paste0(results_dir_plots_nmf, "/05--NMFRankEstimate-human.pdf"), height = 10, width = 20)
++		    ggsave(filename = paste0(results_dir_plots_nmf,
++		    						 "/05--NMFRankEstimate-human.pdf"),
++		    	   height = 6,
++		    	   width = 12)
+ 		}
+ 
+ 		# multispecies
+ 		if (exists("estimateMultispp")) {
+-		    print(plot(estimateMultispp))
++		    print(plot(estimateMultispp,
++		    		   main = "NMF Rank Survey (Multispecies)"))
+ 		    # save fig
+-		    ggsave(filename = paste0(results_dir_plots_nmf, "/05--NMFRankEstimate-Multispp.pdf"), height = 10, width = 20)
++		    ggsave(filename = paste0(results_dir_plots_nmf,
++		    						 "/05--NMFRankEstimate-Multispp.pdf"),
++		    	   height = 6,
++		    	   width = 12)
+ 		}
+ 
+ 	} else {
+ 
+ 	    plot(estimate)
+ 	    # save fig
+-	    ggsave(filename = paste0(results_dir_plots_nmf, "/05--NMF-rank-estimate.pdf"), height = 10, width = 20)
++	    ggsave(filename = paste0(results_dir_plots_nmf,
++	    						 "/05--NMF-rank-estimate.pdf"),
++	    	   height = 6,
++	    	   width = 12)
+ 	    #View(estimate)
+ 
+ 	}
+@@ -894,24 +909,30 @@ if (params$extract_denovo_sigs == TRUE) {
+ 
+ 		# mouse
+ 		if (exists("estimateMouse")) {
+-	    	deNovoNMFResMouse = extract_signatures(mutMatMouse, rank = params$numOfDenovoMouseSigsToExtract, nrun = 10) # default
++	    	deNovoNMFResMouse = extract_signatures(mutMatMouse,
++	    										   rank = params$numOfDenovoMouseSigsToExtract,
++	    										   nrun = params$extract_and_fit_nrun) # default
+ 		}
+ 
+ 		# human
+ 		if (exists("estimateHuman")) {
+-	    	deNovoNMFResHuman = extract_signatures(mutMatHuman, rank = params$numOfDenovoHumanSigsToExtract, nrun = 10) # default
++	    	deNovoNMFResHuman = extract_signatures(mutMatHuman,
++	    										   rank = params$numOfDenovoHumanSigsToExtract,
++	    										   nrun = params$extract_and_fit_nrun) # default
+ 		}
+ 
+ 		# Multispp
+ 		if (exists("estimateMultispp")) {
+-	    	deNovoNMFResMultispp = extract_signatures(mutMatMultispp, rank = params$numOfDenovoMultisppSigsToExtract, nrun = 10) # default
++	    	deNovoNMFResMultispp = extract_signatures(mutMatMultispp,
++	    											  rank = params$numOfDenovoMultisppSigsToExtract,
++	    											  nrun = params$extract_and_fit_nrun) # default
+ 		}
+ 
+ 	} else {
+ 	    # TODO: automatically analyze the best rank by analyzing the values in 'estimate' e.g. when cophenetic begins to drop ||OR|| split script into pre-NMF and post-NMF to allow for changing extraction rank based on intermediate results of NMF estimate?
+ 	    # Extract signatures based on qualitative analysis of rank estimate
+ 	    # FIXME: generalize rank selection based on the previous estimate
+-	    de_novo_nmf_res = extract_signatures(mut_mat, rank = params$num_of_denovo_sigs_to_extract, nrun = 10) # default
++	    de_novo_nmf_res = extract_signatures(mut_mat, rank = params$num_of_denovo_sigs_to_extract, nrun = params$extract_and_fit_nrun) # default
+ 	    # de_novo_nmf_res = extract_signatures(mut_mat, rank = 3, nrun = 200)  # in former script
+ 	}
+ }
+@@ -926,13 +947,15 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		# mouse
+ 		if (exists("deNovoNMFResMouse")) {
+ 			# plot with adjusted y-axes
+-			plot96ProfileCustom(deNovoNMFResMouse$signatures)
++			plot96ProfileCustom(deNovoNMFResMouse$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Mouse)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-mouse-adaptive.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResMouse$signatures)),
+ 		           width = 12)
+ 			# plot with default y-axes
+-			plot_96_profile(deNovoNMFResMouse$signatures)
++			plot_96_profile(deNovoNMFResMouse$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Mouse)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-mouse-standard.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResMouse$signatures)),
+@@ -941,13 +964,15 @@ if (params$extract_denovo_sigs == TRUE) {
+ 
+ 		# human
+ 		if (exists("deNovoNMFResHuman")) {
+-			plot96ProfileCustom(deNovoNMFResHuman$signatures)
++			plot96ProfileCustom(deNovoNMFResHuman$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Human)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-human-adaptive.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResHuman$signatures)),
+ 		           width = 12)
+ 
+-			plot_96_profile(deNovoNMFResHuman$signatures)
++			plot_96_profile(deNovoNMFResHuman$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Human)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-human-standard.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResHuman$signatures)),
+@@ -956,13 +981,15 @@ if (params$extract_denovo_sigs == TRUE) {
+ 
+ 		# Multispp
+ 		if (exists("deNovoNMFResMultispp")) {
+-			plot96ProfileCustom(deNovoNMFResMultispp$signatures)
++			plot96ProfileCustom(deNovoNMFResMultispp$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Multispecies)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-Multispp-adaptive.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResMultispp$signatures)),
+ 		           width = 12)
+ 
+-		    plot_96_profile(deNovoNMFResMultispp$signatures)
++		    plot_96_profile(deNovoNMFResMultispp$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF (Multispecies)")
+ 			# save plot
+ 		    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-Multispp-standard.pdf"),
+ 		           height = (1.2*ncol(deNovoNMFResMultispp$signatures)),
+@@ -970,13 +997,15 @@ if (params$extract_denovo_sigs == TRUE) {
+ 		}
+ 
+ 	} else {
+-	    plot96ProfileCustom(de_novo_nmf_res$signatures)
++	    plot96ProfileCustom(de_novo_nmf_res$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF")
+ 	    # save fig
+ 	    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-adaptive.pdf"),
+ 	           height = (1.2*ncol(de_novo_nmf_res$signatures)),
+ 	           width = 12)
+ 
+-	    plot_96_profile(de_novo_nmf_res$signatures)
++	    plot_96_profile(de_novo_nmf_res$signatures) +
++				labs(title = "De Novo Mutation Signatures via NMF")
+ 	    # save fig
+ 	    ggsave(filename = paste0(results_dir_plots_nmf, "/06--deNovoNMFSigs-standard.pdf"),
+ 	           height = (1.2*ncol(de_novo_nmf_res$signatures)),
+
+commit bbfb24f7a1961baddd517c2d70759b9808c4109a
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 16:19:07 2020 -0500
+
+    Edit About and setup
+    
+    Add TODOs.
+    Edit global chunk opts.
+    Add overwrite to script copy.
+
+diff --git a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+index 5666328..18166c2 100644
+--- a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
++++ b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+@@ -54,7 +54,10 @@ Output
+ 
+ - [x] change how many samples' 96-mutation profiles to plot (e.g. if you are analyzing a lot of samples)
+ - [ ] TODO: output additional NMF sig profiles where y-axis scale is free based on the signature in addition to the one where all y-axes are the same scale
+-- [ ] replace pdf output with PNG output for better interoperability
++- [ ] add param for nrun. ~10 for quick analysis, ~100-200 for robust analysis
++- [ ] add the NMF ranks to caption for de novo sig plots
++- [ ] make an adaptive list of mean NMF cos sims to keep adding to if you want to iterate on it and then you can plot mean cos sim vs. NMF rank to see how the reconstructions stack up.
++- [ ] calculate average cosine sim. and add to cos sim plots
+ - [ ] TODO: rename output dirs to better organize output from each step:
+ ```
+ - 01--mut spectra/
+@@ -126,11 +129,28 @@ opts_knit$set(
+ 	root.dir = rprojroot::find_rstudio_root_file()
+ )
+ 
++# ----
++# Set global chunk options
++opts_chunk$set(
++	tidy.opts = list(width.cutoff = 60),
++	tidy = TRUE,
++	fig.path = paste0(results_dir, "/figures-Rmd/")# TODO: should I remove the trailing '/'?
++)
++
+ # Set working dir for setup chunk
+ setwd(rprojroot::find_rstudio_root_file())
+ getwd()
+ 
+-# Make results dir ----
++# copy script to analysis folder for reproducibility
++file.copy(from = "/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd",
++          to = paste0(results_dir, "/02--mutation-signature-analysis.Rmd"),
++		  overwrite = T)
++
++```
++
++
++```{r make output dirs}
++# make results dir
+ if (!is.null(params[["optional_output_id"]])) {
+     results_dir = paste0(params$output_dir,
+                          "/results",
+@@ -174,18 +194,6 @@ dir.create(results_dir_plots_cosmic)
+ 
+ results_dir_plots_cosmic_reconstructions = paste0(results_dir_plots_cosmic, "/reconstruction-COSMIC")
+ dir.create(results_dir_plots_cosmic_reconstructions)
+-
+-# ----
+-# Set global chunk options
+-opts_chunk$set(
+-	tidy.opts = list(width.cutoff = 60),
+-	tidy = TRUE,
+-	fig.path = paste0(results_dir, "/figures-Rmd")
+-)
+-
+-# copy script to analysis folder for reproducibility
+-file.copy(from = "/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd",
+-          to = paste0(results_dir, "/02--mutation-signature-analysis.Rmd"))
+ ```
+ 
+ Source custom ggplot2 themes:
+
+commit 8a22b725598c7c4e2cb026c9d424d0656ccbcf7a
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 16:17:07 2020 -0500
+
+    Set YAML params to defaults
+
+diff --git a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+index 1ed5af7..5666328 100644
+--- a/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
++++ b/03--code/06--mutation-analysis/02--mutation-signature-analysis/02--mutation-signature-analysis.Rmd
+@@ -6,8 +6,8 @@ date: |
+   Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+ params:
+   # REQUIRED ----------------------------------------
+-  info_table: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/BRCA1-related--Jackson/11--BRCA1-KO/2020-08-25--DP4-filtered-isec3-all-mouse-batches+GDC+BRCA1-modr+high-VEP-impact/01--info-table.tsv' # must have columns: 'sample_name', where all values are unique; absolute_filepath,
+-  output_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/BRCA1-related--Jackson/11--BRCA1-KO/2020-08-25--DP4-filtered-isec3-all-mouse-batches+GDC+BRCA1-modr+high-VEP-impact/04--results-mut-sigs'
++  info_table: '' # must have columns: 'sample_name', where all values are unique; absolute_filepath,
++  output_dir: ''
+   optional_output_id: 'all-BRCA1-KO-mice++TCGA-modr+high-VEP-impact-mut'
+   # STATIC ----------------------------------------
+   cosmic_signatures: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/02--data/02--reference-data/COMIC-mutation-signatures/COSMIC-mutation-signatures-v3-no-artif-formatted.csv' # dont change unless you have to
+@@ -15,97 +15,23 @@ params:
+   species: !r c("mouse", "human") # string: {"mouse",human}; or c("mouse", "human") if multispecies. 'species' must be a variable in the input info table with each observation having the value "mouse" or "human'.
+   # OPTIONAL ----------------------------------------
+   extract_denovo_sigs: yes # {yes|no}; default: yes
++  extract_and_fit_nrun: 50 # {int}; default: 50. 10 is low for quick analyses, set to 30-50 for  more robust estimate of the factorization rank (Gaujoux 2010)
+   num_of_denovo_sigs_to_extract: 2 # {int}; default: 2
+-  numOfDenovoMouseSigsToExtract: 5 # {int}; default: 2
+-  numOfDenovoHumanSigsToExtract: 5 # {int}; default: 2
+-  numOfDenovoMultisppSigsToExtract: 10 # {int}; default: 2
++  numOfDenovoMouseSigsToExtract: 2 # {int}; default: 2
++  numOfDenovoHumanSigsToExtract: 2 # {int}; default: 2
++  numOfDenovoMultisppSigsToExtract: 2 # {int}; default: 2
+   number_of_contrib_muts_to_select: 10 # {int}; default: 10
+   cosmic_signatures_of_interest: !r c(NULL) # char vector or NULL
++  pheat_cutree_rows: 3 # integer or NULL
++  standard_cosmic_signature_subsets: !r c(NULL) # char vector or NULL
+   # info_table_cluster_categories: !r c(NULL) # vector or null
+   # info_table_cluster_categories_colors: !r list(NULL) # list or NULL
+-  info_table_cluster_categories: !r c("species",
+-                                      "is_tumor",
+-                                      "tissue",
+-                                      "BRCA1_status",
+-                                      "p53_status",
+-                                      "stress_type",
+-                                      "IR_status",
+-                                      "MMC dose") # vector or null
+-  info_table_cluster_categories_colors: !r list(species = c(mouse = "brown",
+-                                                            human = "beige"),
+-                                                is_tumor = c(`0` = "white",
+-                                                             `1` = "red"),
+-                                                tissue = c(blood = "darkred",
+-                                                           bone = "antiquewhite",
+-                                                           brain = "bisque2",
+-                                                           `connective tissue` = "azure",
+-                                                           intestine = "saddlebrown",
+-                                                           kidney = "darkgoldenrod1",
+-                                                           liver = "brown4",
+-                                                           lung = "mistyrose",
+-                                                           `lymph node` = "lightyellow",
+-                                                           `mammary gland` = "hotpink",
+-                                                           oral = "pink",
+-                                                           ovary = "magenta",
+-                                                           pancreas = "orange",
+-                                                           prostate = "mediumpurple",
+-                                                           skin = "lightsalmon4",
+-                                                           spleen = "red4",
+-                                                           stomach = "lightskyblue",
+-                                                           thyroid = "ivory4",
+-                                                           urogenital = "seagreen"),
+-                                                BRCA1_status = c(wt = "white",
+-                                                                 del = "red",
+-                                                                 mut = "lightpink"),
+-                                                p53_status = c(wt = "white",
+-                                                               `wt/*` = "red"),
+-                                                stress_type = c(aging = "gray",
+-                                                                IR = "magenta",
+-                                                                MMC = "gold"),
+-                                                IR_status = c(`3Gy` = "magenta",
+-                                                              `6Gy` = "magenta4"),
+-                                                `MMC dose` = c(`1.25` = "moccasin")) # list or NULL
+-  info_table_cluster_categories_mouse: !r c("is_tumor", "tissue", "BRCA1_status", "p53_status", "stress_type", "IR_status", "MMC dose") # vector or null
+-  info_table_cluster_categories_colors_mouse: !r list(is_tumor = c(`0` = "white",
+-                                                                   `1` = "red"),
+-                                                      tissue = c(bone = "antiquewhite",
+-                                                                 intestine = "saddlebrown",
+-                                                                 `mammary gland` = "hotpink",
+-                                                                 pancreas = "orange",
+-                                                           spleen = "red4"),
+-                                                      BRCA1_status = c(wt = "white",
+-                                                                       del = "red"),
+-                                                      p53_status = c(wt = "white",
+-                                                                     `wt/*` = "red"),
+-                                                      stress_type = c(aging = "gray",
+-                                                                      IR = "magenta",
+-                                                                      MMC = "gold"),
+-                                                      IR_status = c(`3Gy` = "magenta",
+-                                                                    `6Gy` = "magenta4"),
+-                                                      `MMC dose` = c(`1.25` = "moccasin")) # list or NULL
+-  info_table_cluster_categories_human: !r c("is_tumor", "tissue") # vector or null
+-  info_table_cluster_categories_colors_human: !r list(is_tumor = c(`0` = "white",
+-                                                                   `1` = "red"),
+-                                                      tissue = c(blood = "darkred",
+-                                                                 brain = "bisque2",
+-                                                                 `connective tissue` = "azure",
+-                                                                 intestine = "saddlebrown",
+-                                                                 kidney = "darkgoldenrod1",
+-                                                                 liver = "brown4",
+-                                                                 lung = "mistyrose",
+-                                                                 `lymph node` = "lightyellow",
+-                                                                 `mammary gland` = "hotpink",
+-                                                                 oral = "pink",
+-                                                                 ovary = "magenta",
+-                                                                 pancreas = "orange",
+-                                                                 prostate = "mediumpurple",
+-                                                                 skin = "lightsalmon4",
+-                                                                 stomach = "lightskyblue",
+-                                                                 thyroid = "ivory4",
+-                                                                 urogenital = "seagreen"),
+-                                                      BRCA1_status = c(mut = "lightpink")) # list or NULL
+-  pheat_cutree_rows: NULL # integer or NULL
+-  standard_cosmic_signature_subsets: !r c(NULL) # char vector or NULL
++  info_table_cluster_categories: !r c(NULL) # vector or null. Each item must exactly match a column name in the input info table.
++  info_table_cluster_categories_colors: !r list(NULL) # list or NULL
++  info_table_cluster_categories_mouse: !r c(NULL) # vector or null
++  info_table_cluster_categories_colors_mouse: !r list(NULL) # list or NULL
++  info_table_cluster_categories_human: !r c(NULL) # vector or null
++  info_table_cluster_categories_colors_human: !r list(NULL) # list or NULL
+ ---
+ 
+ # About
+
+commit dd35c58d7f288bba1b5d2bf34394c2aa2ce72d9d
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:43:11 2020 -0500
+
+    Disable load tables chunk output. Rm whitespace.
+
+diff --git a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+index 3dab30a..1367c2c 100644
+--- a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
++++ b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+@@ -519,19 +519,19 @@ if (params$tmb_box_multitest) {
+ ## 2. VAF Distribution
+ 
+ Load all the VCF body TSVs into R as a list of tables:
+-```{r load vcf body tables}
++```{r load vcf body tables, message=FALSE, include=FALSE}
+ # initialize empty list to hold tables
+ l_vcfBodyTables = list()
+ 
+ # loop through list of body table filepaths and add each table to the list
+ for (i in 1:length(v_vcfBodyTsvFilepaths)) {
+-	
++
+ 	# make full TSV filepath
+-	iVcfBodyTsvPath = paste0(dir_tmp, "/", v_vcfBodyTsvFilepaths[i])
+-	
++	iVcfBodyTsvPath = paste0(dir_tmp, "/vcfs/", v_vcfBodyTsvFilepaths[i])
++
+ 	# load the TSV into the list as an element
+ 	l_vcfBodyTables[[basename(iVcfBodyTsvPath)]] = read_tsv(iVcfBodyTsvPath)
+-	
++
+ 	# TODO: add flanking nucleotides
+ }
+ ```
+@@ -539,13 +539,13 @@ for (i in 1:length(v_vcfBodyTsvFilepaths)) {
+ Loop through VCF body tables and plot histograms of the variant allele frequencies (VAF):
+ ```{r plot vaf histos}
+ for (i in 1:length(l_vcfBodyTables)) {
+-	
++
+ 	# print element name for testing
+ 	tableName = print(names(l_vcfBodyTables[i]))
+-	
++
+ 	# assign table as iter variable
+ 	vcfBodyTable = l_vcfBodyTables[[i]]
+-	
++
+ 	# munge to get the VAF values from the Varscan 'FREQ' FORMAT field
+ 	formatTable = vcfBodyTable %>%
+ 		# select only FORMAT fields for the TUMOR sample
+@@ -556,7 +556,7 @@ for (i in 1:length(l_vcfBodyTables)) {
+ 				 sep = ":") %>%
+ 		# remove the '%' sign from the VAF values and convert to numeric type
+ 		mutate(FREQ = as.numeric(str_replace(string = FREQ, pattern = "%", replacement = "")))
+-	
++
+ 	# plot a histogram of the VAF values
+ 	print(
+ 		ggplot(data = formatTable) +
+@@ -564,7 +564,7 @@ for (i in 1:length(l_vcfBodyTables)) {
+ 			geom_histogram(fill = "gray50",
+ 						   color = "white") +
+ 			scale_x_continuous(limits = c(0,NA)) +
+-			myggthemedark +
++			# myggthemedark +
+ 			labs(title = "Distribution of Variant Allele Frequencies (VAF)",
+ 				 subtitle = str_replace(string = tableName,
+ 							 			pattern = "\\..+",
+@@ -572,7 +572,7 @@ for (i in 1:length(l_vcfBodyTables)) {
+ 				 x = "VAF (%)",
+ 				 y = "Count")
+ 	)
+-	
++
+ 	# save plot
+ 	ggsave(filename = paste0(dir_results_plots_vafHisto,
+ 							 "/VAFHist--",
+@@ -589,7 +589,7 @@ for (i in 1:length(l_vcfBodyTables)) {
+ 						 alpha = 0.2,
+ 						 color = "white", ) +
+ 			scale_x_continuous(limits = c(0,NA)) +
+-			myggthemedark +
++			# myggthemedark +
+ 			labs(title = "Distribution of Variant Allele Frequencies (VAF)",
+ 				 subtitle = str_replace(string = tableName,
+ 							 			pattern = "\\..+",
+@@ -625,11 +625,11 @@ for (i in 1:length(l_vcfBodyTables)) {
+ # 			 subtitle = sampleName,
+ # 			 x = "VAF (%)",
+ # 			 y = "Count")
+-# 	
++#
+ # 	# save plot
+ # 	ggsave()
+ # }
+-# 
++#
+ # lapply(X = l_vcfBodyTables, FUN = plotVAFHistFromVCFBodyTable(sampleName = ))
+ ```
+ 
+@@ -641,6 +641,6 @@ for (i in 1:length(l_vcfBodyTables)) {
+ save.image(file = paste0(dir_results, "/data.Rdata"))
+ 
+ # save session info
+-write_lines(capture.output(sessionInfo()), 
++write_lines(capture.output(sessionInfo()),
+             path = paste0(dir_results, "/sessionInfo.txt"))
+ ```
+
+commit 9aa8a7c3aef9b44e6aa603abf99008732a536de1
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:40:26 2020 -0500
+
+    Edit TMB code
+    
+    Simplify making TMB table.
+    Rm per-sample TMB, add boxplot for grouped TMB.
+    Add boxplot t-test.
+    Add boxplot ANOVA.
+    Add but disable facetted TMB bar plot.
+
+diff --git a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+index ab3e503..3dab30a 100644
+--- a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
++++ b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+@@ -281,7 +281,7 @@ while read line ; do
+ 	# printf "File basename: ${fileBasename}\n"
+ 	fileRootname=${fileBasename%%.*}
+ 	# printf "File rootname: ${fileRootname}\n"
+-	
++
+ 	# count all variants and assign to tmb variable
+ 	tmb=$(grep -v '^#' "$line" | wc -l)
+ 	# printf "TMB: ${tmb}\n"
+@@ -299,79 +299,223 @@ t_tmbSummary_load = read_tsv(t_tmbSummary)
+ t_tmbSummary_load
+ 
+ # Join TMB data to info table
+-t_infoTable_join = t_tmbSummary_load %>%
+-	left_join(., y = in_df_infoTableVcfs, by = "file_rootname") %>%
+-	select(sample_name, TMB, !c("file_rootname", "sampleRootName"), everything()) %>%
+-	mutate(genotype = factor(genotype))
++t_infoTable_join = left_join(x = t_tmbSummary_load, y = in_df_infoTableVcfs, by = "file_rootname") %>%
++	# FIXME: where did 'sampleRootName' fit in here?
++	# select(sample_name, TMB, !c(file_rootname, sampleRootName), everything()) %>%
++	select(sample_name, TMB, everything())
++	# mutate(genotype = factor(genotype))
+ t_infoTable_join
+ 
+ # write final TMB table to file
+ t_infoTable_join %>%
+-	arrange(genotype) %>%
+-	select(sample_name, TMB, genotype) %>%
++	select(sample_name, TMB) %>%
+ 	write_tsv(x = ., path = paste0(dir_results_tables, "/tmb-table.tsv"))
+ ```
+ 
+-Plot per-sample TMB:
+-```{r plot sample TMB}
+-if (exists("v_tmbFacetVar", where = params)) {
+-	p_tmb = t_infoTable_join %>%
+-		ggplot(aes(x = sample_name,
+-				   y = TMB,
+-				   fill = get(params$v_tmbFacetVar),
+-				   label = as.character(TMB))) +
+-		geom_col() +
+-		geom_text(size = 3, vjust = -1, color = "white") +
+-		facet_grid(. ~ get(params$v_tmbFacetVar),
+-				   scales = "free") +
+-		scale_y_continuous(limits = c(0, (1.1*max(t_infoTable_join$TMB))))
++Plot boxplot of TMBs:
++```{r TMB boxplot, message=F}
++# filter input data if indicated
++if (exists("tmb_box_var_subset", where = params)) {
++	t_tmb_box_input = t_infoTable_join %>%
++		filter(get(params$tmb_box_var_subset) == params$tmb_box_var_subset_value)
+ } else {
+-	t_infoTable_join %>%
+-		ggplot(aes(x = sample_name, y = TMB)) +
+-		geom_col()
++	t_tmb_box_input = t_infoTable_join
+ }
+ 
+-p_tmb = p_tmb +
+-	myggthemedark +
+-	theme(axis.text.x = element_text(angle = 90),
+-		  legend.position = "right") +
+-	labs(title = "Tumor Mutation Burden by Sample",
+-		 x = "Sample",
++
++p_tmb_box = t_tmb_box_input %>%
++	ggplot() +
++	aes(
++		x = get(params$tmb_box_var_x),
++		y = TMB,
++		fill = if (exists("tmb_box_var_fill", where = params)) {
++			get(params$tmb_box_var_fill)
++		}
++	) +
++	geom_boxplot(width = 0.5) +
++	geom_jitter(aes(color = if (exists("tmb_box_var_color", where = params)) {
++		factor(get(params$tmb_box_var_color))
++	}),
++				width = 0.2,
++				size = 1,
++				alpha = 0.5) +
++	stat_summary(fun = mean,
++				 geom = "point",
++				 # aes(group = cyl),
++				 shape = 21, fill = "white", color = "black", size = 2, stroke = 1) +
++	scale_y_log10(labels = label_number_auto()) +
++	# scale_y_continuous(labels = label_number_si()) +
++	scale_fill_brewer(palette = "Pastel1") +
++	scale_color_manual(values = c("blue", "red", "green")) +
++	theme_light() +
++	# scale_color_brewer(palette = "Set1") +
++	# scale_fill_viridis(discrete = T) +
++	# scale_color_manual(values = rev(brewer.pal(n = 2, name = "Set1"))) +
++	# scale_color_manual(values = rev(brewer.pal(n = 2, name = "Set1")[1:2])) +
++	# scale_color_brewer(palette = "Set1") +
++	# scale_color_viridis(discrete = T) +
++	# myggthemelight +
++	labs(title = paste0("Mutation Burden vs. ",
++						params$tmb_box_var_x),
++		 subtitle = if (exists("tmb_box_var_subset", where = params)) {
++		 	paste0("Filtered for: ",
++		 		   params$tmb_box_var_subset,
++		 		   " = ",
++		 		   as.character(params$tmb_box_var_subset_value))
++		 },
++		 x = params$tmb_box_var_x,
+ 		 y = "TMB",
+-		 fill = params$v_tmbFacetVar)
+-p_tmb
++		 color = params$tmb_box_var_color,
++		 fill = params$tmb_box_var_fill)
++p_tmb_box
++
+ # save plot
+-# FIXME: fix fonts crashing the save to PDF format
+-sink(ggsave(filename = paste0(dir_results_plots, "/sample-TMB.png"),
+-	   plot = p_tmb))
++ggsave(filename = paste0(dir_results_plots_tmb,
++						 "/tmb-boxplot.pdf"),
++	   width = 6,
++	   height = 4)
+ ```
+ 
+-Plot per-group TMB (boxplot):
+-```{r plot per group tmb}
+-if (exists("v_tmbFacetVar", where = params)) {
+-	p_tmb_group = t_infoTable_join %>%
+-		ggplot(aes(x = genotype, y = TMB, fill = get(params$v_tmbFacetVar))) +
+-		geom_boxplot(color = "white", outlier.size = 0) +
+-		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black")
+-} else {
+-	p_tmb_group = t_infoTable_join %>%
+-		ggplot(aes(x = genotype, y = TMB)) +
+-		geom_boxplot(outlier.size = 0, ) +
+-		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black")
++Perform a t-test for difference in means between 2 groups (if indicated):
++
++```{r TMB boxplot ttest}
++# perform t-test if indicated (only use if comparing 2 groups)
++if (params$tmb_box_ttest) {
++	print(
++		p_tmb_box +
++			geoms
++			# stat_compare_means(method = "t.test",
++			# 				   label.x.npc = 0.4,
++			# 				   # label.y.npc = 1,
++			# 				   label.y = log10(1.2*max(t_tmb_box_input$TMB))) +
++			# 				   # comparisons = params$tmb_box_group_comparisons,
++			# 				   # label = "p.format")
++			# stat_compare_means(method = "t.test",
++			# 				   comparisons = params$tmb_box_group_comparisons,
++			# 				   label = "p.signif")
++	)
++	# save plot
++	ggsave(filename = paste0(dir_results_plots_tmb,
++							 "/tmb-boxplot-ttest.pdf"),
++		   width = 6,
++		   height = 4)
+ }
++```
+ 
+-p_tmb_group = p_tmb_group +
+-	myggthemedark +
+-	theme(legend.position = "right") +
+-	labs(title = "Tumor Mutation Burden by Sample",
+-		 x = "Sample",
+-		 y = "TMB",
+-		 fill = "Genotype")
+-p_tmb_group
+-# save plot
+-ggsave(filename = paste0(dir_results_plots, "/group-TMB.png"))
++Perform ANOVA for difference in means on >2 groups (if indicated):
++
++```{r TMB boxplot ANOVA}
++# perform anova if indicated (use with >2 groups)
++if (params$tmb_box_anova) {
++	print(
++		p_tmb_box +
++			stat_compare_means(method = "anova")
++							   # label.x.npc = 0.5,
++							   # label.y.npc = 1)
++							   # comparisons = params$tmb_box_group_comparisons)
++	)
++	# save plot
++	ggsave(filename = paste0(dir_results_plots_tmb,
++							 "/tmb-boxplot-anova.pdf"),
++		   width = 6,
++		   height = 4)
++}
++```
++
++
++```{r TMB boxplot multitest}
++# TODO
++# perform multiple comparisons test (always use after ANOVA?)
++if (params$tmb_box_multitest) {
++	print(
++		p_tmb_box +
++			stat_compare_means(method = "t.test",
++							   comparisons = params$tmb_box_group_comparisons) +
++			stat_compare_means(method = "anova",
++							   label.y.npc = "top",
++							   label.x.npc = "left")
++	)
++	# save plot
++	ggsave(filename = paste0(dir_results_plots_tmb,
++							 "/tmb-boxplot-multicompare.pdf"),
++		   width = 6,
++		   height = 4)
++}
+ ```
+ 
++<!-- # if (exists("v_tmbFacetVar", where = params)) { -->
++<!-- # 	if(nrow(t_infoTable_join) < 20) { -->
++<!-- # 		p_tmb = t_infoTable_join %>% -->
++<!-- # 			ggplot(aes(x = sample_name, -->
++<!-- # 					   y = TMB, -->
++<!-- # 					   fill = get(params$v_tmbFacetVar), -->
++<!-- # 					   label = as.character(TMB))) + -->
++<!-- # 			geom_col() + -->
++<!-- # 			geom_text(size = 3, vjust = -1, color = "white") + -->
++<!-- # 			facet_grid(. ~ get(params$v_tmbFacetVar), -->
++<!-- # 					   scales = "free") + -->
++<!-- # 			scale_y_continuous(limits = c(0, (1.1*max(t_infoTable_join$TMB)))) -->
++<!-- # 	} else { -->
++<!-- # 		p_tmb = t_infoTable_join %>% -->
++<!-- # 			ggplot(aes(x = sample_name, -->
++<!-- # 					   y = TMB, -->
++<!-- # 					   fill = get(params$v_tmbFacetVar), -->
++<!-- # 					   label = as.character(TMB))) + -->
++<!-- # 			geom_col() + -->
++<!-- # 			facet_grid(. ~ get(params$v_tmbFacetVar), -->
++<!-- # 					   scales = "free") + -->
++<!-- # 			scale_y_continuous(limits = c(0, (1.1*max(t_infoTable_join$TMB)))) + -->
++<!-- # 			theme(axis.text.x = element_blank()) -->
++<!-- # 		 -->
++<!-- # 	} -->
++<!-- # } else { -->
++<!-- # 	p_tmb = t_infoTable_join %>% -->
++<!-- # 		ggplot(aes(x = sample_name, y = TMB)) + -->
++<!-- # 		geom_col(fill = "white", col = "black") -->
++<!-- # } -->
++<!-- #  -->
++<!-- # p_tmb = p_tmb + -->
++<!-- # 	myggthemedark +  -->
++<!-- # 	# theme(axis.text.x = element_text(angle = 90), -->
++<!-- # 		  # legend.position = "right") + -->
++<!-- # 	labs(title = "Tumor Mutation Burden by Sample", -->
++<!-- # 		 x = "Sample", -->
++<!-- # 		 y = "TMB", -->
++<!-- # 		 fill = params$v_tmbFacetVar) -->
++<!-- # p_tmb -->
++<!-- # # save plot -->
++<!-- # # FIXME: fix fonts crashing the save to PDF format -->
++<!-- # sink(ggsave(filename = paste0(dir_results_plots, "/sample-TMB.png"), -->
++<!-- # 	   plot = p_tmb)) -->
++
++<!-- Plot per-group TMB (boxplot): -->
++<!-- ```{r plot per group tmb} -->
++<!-- if (exists("v_tmbFacetVar", where = params)) { -->
++<!-- 	p_tmb_group = t_infoTable_join %>% -->
++<!-- 		ggplot(aes(x = genotype, -->
++<!-- 				   y = TMB, -->
++<!-- 				   fill = get(params$v_tmbFacetVar))) + -->
++<!-- 		geom_boxplot(color = "white", outlier.size = 0) + -->
++<!-- 		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black") -->
++<!-- } else { -->
++<!-- 	p_tmb_group = t_infoTable_join %>% -->
++<!-- 		ggplot(aes(x = genotype, y = TMB)) + -->
++<!-- 		geom_boxplot(outlier.size = 0, ) + -->
++<!-- 		geom_jitter(shape = 21, size = 3, color = "white", width = 0.2, fill = "black") -->
++<!-- } -->
++
++<!-- p_tmb_group = p_tmb_group + -->
++<!-- 	myggthemedark + -->
++<!-- 	theme(legend.position = "right") + -->
++<!-- 	labs(title = "Tumor Mutation Burden by Sample", -->
++<!-- 		 x = "Sample", -->
++<!-- 		 y = "TMB", -->
++<!-- 		 fill = "_____") -->
++<!-- p_tmb_group -->
++<!-- # save plot -->
++<!-- ggsave(filename = paste0(dir_results_plots, "/group-TMB.png")) -->
++<!-- ``` -->
++
+ ## 2. VAF Distribution
+ 
+ Load all the VCF body TSVs into R as a list of tables:
+
+commit 8211040669b21872361cba853b38a938b9a47f94
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:33:43 2020 -0500
+
+    Update part of first draft.
+    
+    Edit & add lots of params.
+    Setup: implement multispecies genomes. Load ggpubr. Edit headers. Add more results subdirs.
+    Edit path to copy VCFs from.
+    Edit var names.
+
+diff --git a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+index 07adf17..ab3e503 100644
+--- a/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
++++ b/03--code/06--mutation-analysis/01--VCF-descriptive-stats/01--VCF-descriptive-stats-NEW.Rmd
+@@ -6,12 +6,22 @@ date: |
+   | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+ params:
+   # REQUIRED ========================================
+-  in_infoTable_VCFs: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/RRM1MutMice--Chabes/WES+TDS/01--info-table-3.tsv' # string -- path to file
+-  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/RRM1MutMice--Chabes/WES+TDS/03--results-desc-stats' # string -- path to dir
+-  species: 'mouse' # {"mouse"|"human"}
++  in_infoTable_VCFs: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/BRCA1-related--Jackson/2020-08-25--DP4-filtered-isec3-all-mouse-batches+GDC+BRCA1-modr+high-VEP-impact/01--info-table.tsv' # string; path to table file. Must contain columns named 'sample_name' and 'absolute_filepath'
++  out_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/BRCA1-related--Jackson/2020-08-25--DP4-filtered-isec3-all-mouse-batches+GDC+BRCA1-modr+high-VEP-impact/03--results-desc-stats' # string -- path to dir
++  isMultispp: yes # {yes|no}; default: yes
++  species: c("mouse", "human") # string or c("mouse", "human") 'species' must be a variable in the input info table with each observation having the value "mouse" or "human'.
+   # OPTIONAL ========================================
+-  out_optID: 'testingDescStats' # string or NULL
+-  v_tmbFacetVar: "genotype" # NULL or string
++  out_optID: 'testing' # string or NULL
++  # TMB boxplot variables  ========================================
++  tmb_box_var_subset: "species" # info table variable to filter for, e.g. if you only want to compare non-tumor tissues, put "is_tumor" and for 'tmb_box_var_subset_value" put the value to filter for
++  tmb_box_var_subset_value: "mouse" # value depends on var type of 'tmb_box_var_subset'
++  tmb_box_var_x: "BRCA1_status"
++  tmb_box_var_fill: "BRCA1_status"
++  tmb_box_var_color: "is_tumor"
++  tmb_box_ttest: yes # yes or no
++  tmb_box_anova: no # yes or no
++  tmb_box_multitest: no # yes or no
++  tmb_box_group_comparisons: !r list(c("wt", "del")) # must be values of the varible on x-axis from 'tmb_box_var_x'
+ ---
+ 
+ # About
+@@ -30,33 +40,51 @@ Fill in YAML params according to desired analysis.
+ # Setup
+ 
+ ```{r setup}
+-# 1. load packages ----
++# load packages ----
+ library(knitr)
+ library(scales)
+ library(BSgenome)
+-if (params$species == "mouse") {
+-    library(BSgenome.Mmusculus.UCSC.mm10)
+-    ref_genome = BSgenome.Mmusculus.UCSC.mm10
+-}
+-if (params$species == "human") {
++if (params$isMultispp) {
++
++	library(BSgenome.Mmusculus.UCSC.mm10)
++    refGenomeMouse = "BSgenome.Mmusculus.UCSC.mm10"
++
+     library(BSgenome.Hsapiens.UCSC.hg38)
+-    ref_genome = BSgenome.Hsapiens.UCSC.hg38
++    refGenomeHuman = "BSgenome.Hsapiens.UCSC.hg38"
++
++} else if (params$species == "mouse") {
++
++	library(BSgenome.Mmusculus.UCSC.mm10)
++    ref_genome = "BSgenome.Mmusculus.UCSC.mm10"
++
++} else if (params$species == "human") {
++
++    library(BSgenome.Hsapiens.UCSC.hg38)
++    ref_genome = "BSgenome.Hsapiens.UCSC.hg38"
++
+ }
+ library(extrafont)
+ library(RColorBrewer)
++library(viridis)
++library(ggpubr)
+ library(tidyverse)
+ 
+ 
+-# 2. set global knit options ----
++# set global knit options ----
+ opts_knit$set(
+     # set project root dir as working dir
+     root.dir = rprojroot::find_rstudio_root_file()
+ )
+ 
+-# 3. Set working dir for setup chunk ----
++# Set working dir for setup chunk ----
+ setwd(rprojroot::find_rstudio_root_file())
+ getwd()
+ 
++```
++
++Make directories and subdirs for output:
++
++```{r make output dirs}
+ # 4. Make results dir ----
+ if (!is.null(params[["out_optID"]])) {
+     dir_results = paste0(params$out_dir,
+@@ -74,7 +102,7 @@ if (!is.null(params[["out_optID"]])) {
+     dir.create(dir_results)
+ }
+ 
+-# * 4.1. make results subdirectories ----
++# make results subdirectories ----
+ 	# dir_results_data = paste0(dir_results, "/data")
+ 	# dir.create(dir_results_data)
+ 	# dir for data tables
+@@ -83,6 +111,9 @@ if (!is.null(params[["out_optID"]])) {
+ 	# dir for plots
+ 		dir_results_plots = paste0(dir_results, "/plots")
+ 		dir.create(dir_results_plots)
++	# dir for TMB plots
++		dir_results_plots_tmb = paste0(dir_results, "/plots/tmb")
++		dir.create(dir_results_plots_tmb)
+ 	# dir for VAF histogram plots
+ 		dir_results_plots_vafHisto = paste0(dir_results, "/plots/vafHisto")
+ 		dir.create(dir_results_plots_vafHisto)
+@@ -92,19 +123,27 @@ if (!is.null(params[["out_optID"]])) {
+ 	# Tmp dir for intermediate files
+ 		dir_tmp = paste0(dir_results, "/tmp")
+ 		dir.create(dir_tmp)
++	# Tmp dir for VCF files
++		dir_tmp_vcfs = paste0(dir_tmp, "/vcfs")
++		dir.create(dir_tmp_vcfs)
+ 
+-# 5. get filepath of current script to copy into results dir ----
++# get filepath of current script to copy into results dir ----
+ src_filepath = rstudioapi::getSourceEditorContext()$path
+ file.copy(from = src_filepath, to = dir_results)
+ 
+-# 6. Export shell environment variables ----
++# Export shell environment variables ----
+ Sys.setenv(
+ 	# results dirs and subdirs
+ 	dir_results = dir_results,
+ 	dir_results_plots = dir_results_plots,
++	dir_results_plots_tmb = dir_results_plots_tmb,
++	dir_results_plots_vafDens = dir_results_plots_vafDens,
++	dir_results_plots_vafHisto = dir_results_plots_vafHisto,
+ 	dir_results_tables = dir_results_tables,
+ 	# tmp dir
+ 	dir_tmp = dir_tmp,
++	# tmp VCFs dir
++	dir_tmp_vcfs = dir_tmp_vcfs,
+ 	# filepath of current script
+ 	src_filepath = src_filepath
+ )
+@@ -131,6 +170,7 @@ printf "Results dir: ${dir_results}\n\n\
+ Plots dir: ${dir_results_plots}\n\n\
+ Tables dir: ${dir_results_tables}\n\n\
+ Tmp dir: ${dir_tmp}\n\n\
++Tmp VCFs dir: ${dir_tmp_vcfs}\n\n\
+ Script src: ${src_filepath}"
+ ```
+ 
+@@ -175,9 +215,9 @@ while read line ; do
+ 
+ 	# get file basename
+ 	lineBasename=$(basename "$line")
+-	
++
+ 	# define vcf copy and gz filenames
+-	f_vcfCp="${dir_tmp}/${lineBasename}"
++	f_vcfCp="${dir_tmp_vcfs}/${lineBasename}"
+ 	f_vcfCpGz="${f_vcfCp}.gz"
+ 
+ 	# copy VCF to tmp dir
+@@ -194,11 +234,11 @@ done < "${dir_tmp}/absoluteFilepathsVCFs.tsv"
+ 
+ Subset every VCF for just the body for import into R as a table:
+ ```{zsh subset vcf bodies, engine.opts='-i'}
+-for vcf in "$dir_tmp"/*.vcf ; do
+-	
++for vcf in "$dir_tmp_vcfs"/*.vcf ; do
++
+ 	# print filename
+-	echo "$vcf"
+-	
++	# echo "$vcf"
++
+ 	# remove VCF header and output body with col headers to a TSV
+ 	grep -v '^##' "$vcf" > "${vcf}.body.tsv"
+ 
+@@ -208,7 +248,7 @@ done
+ Make a list of filepaths for the VCF body TSV (used in VAF distribution section):
+ ```{r make vcf body tsv list}
+ v_vcfBodyTsvFilepaths = list.files(
+-	path = dir_tmp,
++	path = dir_tmp_vcfs,
+ 	pattern = "vcf.body.tsv"
+ )
+ v_vcfBodyTsvFilepaths
+
+commit 5e4b87d93e93bf416276327c1065cb4f9910049c
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:27:26 2020 -0500
+
+    Update workflow
+    
+    Update YAML front matter.
+    Update headings.
+    Add info for Varscan variant calling.
+
+diff --git a/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md b/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
+index a2ac8f9..0fa6305 100644
+--- a/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
++++ b/01--docs/doc--workflow--DNAseq-analysis/workflow--DNAseq-analysis.md
+@@ -1,33 +1,56 @@
+ ---
+-title: 'Workflow for DNA-seq Analysis'
++title: 'Workflow: DNA-seq Analysis'
++
+ author:
+ - Leo Williams:
+     institute: [inst1]
+-    correspondence: yes
+-    email: lwilli24@tulane.edu
+ institute:
+-- inst1: 'Pursell Lab, Dept. of Biochemistry & Molecular Biology, Tulane University School of Medicine, New Orleans, LA, USA'
+-date: 'Updated: \today'
+-link-citations: true
++- inst1: Tulane University School of Medicine, New Orleans, LA, USA
++- inst2: IGERT Bioinnovation PhD Program, Tulane University School of Science & Engineering, New Orleans, LA, USA
++
++date: |
++  | Created: 2020 Aug 01
++  | Updated: \today
++
++link-citations: yes
+ numbersections: yes
+-abstract: |
+-  **Introduction** This is the abstract introduction.
+-  
+-  **Methods** This is the abstract section to list the materials and methods used in the research.
+-  
+-  **Results** This is the abstract section to briefly describe the results.
+-  
+-  **Conclusions** In this abstract section, briefly list the conclusions from the research.
+----
++
++colorlinks: yes
++
++header-includes:
++# wrap code blocks using the listings package (run with pandoc command that includes `--listings` command). looks cleaner. but makes highlighting mistakes, e.g. mistakes any '#' symbol as the start of a comment
++- \usepackage{xcolor}
++- \lstset{breaklines=true}
++- \lstset{language=[Motorola68k]Assembler}
++- \lstset{basicstyle=\small\ttfamily}
++- \lstset{extendedchars=true}
++- \lstset{tabsize=2}
++- \lstset{columns=fixed}
++- \lstset{showstringspaces=false}
++- \lstset{frame=trbl}
++- \lstset{frameround=tttt}
++- \lstset{framesep=4pt}
++- \lstset{numbers=left}
++- \lstset{numberstyle=\tiny\ttfamily}
++- \lstset{postbreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\color{red}\hookrightarrow\space}}}
++- \lstset{commentstyle=\color{red!50!black}}
++- \lstset{keywordstyle=\color{blue!70!black}}
++- \lstset{stringstyle=\color{green!50!black}}
++
++# prevent floating figures (insert them where they are in the .md file)
++- \usepackage{float}
++- \let\origfigure\figure
++- \let\endorigfigure\endfigure
++- \renewenvironment{figure}[1][2] {\expandafter\origfigure\expandafter[H]}{\endorigfigure}
+ 
+ ---
+ 
+-\newpage
++ <!--\newpage-->
+ \setcounter{tocdepth}{4}
+ \tableofcontents
+ \listoffigures
+-\listoftables
+-\newpage
++<!--\listoftables-->
++<!--\newpage-->
+ 
+ ---
+ 
+@@ -68,39 +91,106 @@ Use the following command to remove this flag when you need to add more raw data
+ sudo chflags -R noschg "$LOWEST_DIR_NEEDED_FOR_ACCESS"
+ ```
+ 
+-# Move Data to Working Directory, Format, and Label
++## Move Data to Working Directory, Format, and Label
+ 
+ - [ ] use sample naming key
+ - [ ] `gunzip`, `gzcat`, `cat`, etc
+ 
+-# Quality Control on Raw Reads
++## Quality Control on Raw Reads
+ 
+ `FASTQC`
+ 
++---
++
++\newpage
++
+ 
+ # Map Reads to Reference Genome
+ 
+ `bwa mem`
+ 
+-# Quality Control on Read Alignments
++## Quality Control on Read Alignments
++
++- ==how to?==
+ 
+ # Variant Calling, Filtering, and Annotation
+ 
+ ## Variant calling
+ 
+-### Somatic mutations
++### Somatic short variants (SNVs & indels)
++
++#### GATK
++
++#### Varscan2 Basic Protocol 2: Somatic Mutation Detection in Tumor-Normal Pairs[@2014KoboldtUsingVarScanGermline]
+ 
+-#### Varscan2 Basic Protocol 1: Somatic mutation calling in tumor-normal pairs
++Input:
++
++```
++tumor.bam
++normal.bam
++ref.fa
++```
+ 
+-Input: `tumor.bam`, `normal.bam`, `ref.fa`
++Output: 
+ 
+-Output: `{snp,indel}.{Somatic.LOH,Germline}{,.hc}.vcf`
++```
++snp.Somatic.vcf
++snp.Somatic.hc.vcf
++snp.Somatic.hc.filter.vcf
++snp.LOH.vcf
++snp.LOH.hc.vcf
++snp.Germline.vcf
++snp.Germline.hc.vcf
++
++indel.Somatic.vcf
++indel.Somatic.hc.vcf
++indel.LOH.vcf
++indel.LOH.hc.vcf
++indel.Germline.vcf
++indel.Germline.hc.vcf
++```
+ 
+ Description: 
+ 
++### Somatic copy-number variants (CNV)
++
++#### VarScan2 Alternate Protocol 2: Somatic Copy Number Alteration Detection in Tumor-Normal Pairs
++
++Input:
++
++Output:
++
+ ### Germline variants
+ 
+-### De novo germline mutations
++#### VarScan2 Basic Protocol 1: Germline Variant Calling in Individual or Pooled Samples[@2014KoboldtUsingVarScanGermline]
++
++Input:
++
++```
++
++```
++
++Output:
++
++```
++
++```
++
++#### VarScan2 Alternate Protocol 1: Germline Variant Calling in a Cohort of Individuals[@2014KoboldtUsingVarScanGermline]
++
++Input:
++
++Output:
++
++### #### Varscan2 Basic Protocol 3: Pedigree-Aware Calling of Family Trios (de novo germline mutations)
++
++Input:
++
++Output:
++
++## QC on called variants
++
++- ==how to?== - mapping quality score, BAQ, MAQ?
+ 
+ ## Variant filtering
+ 
+@@ -110,7 +200,7 @@ Description:
+ 
+ ## Variant annotation
+ 
+-# Quality 
++# Quality
+ 
+ # Mutation Analysis
+ 
+
+commit 92814c9ce44a4b9e67d79294c0579b0faab6708e
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:20:25 2020 -0500
+
+    Update
+
+diff --git a/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md b/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
+index 267b81f..d239d8b 100644
+--- a/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
++++ b/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.md
+@@ -142,6 +142,31 @@ I finished implementing multispecies functionality in the mutation signature scr
+ 
+ After refactoring mut. sigs. analysis script, I also increased the `nrun` argument to 100 for NMF rank estimation, de novo NMF signature extraction, and COSMIC signature fitting in order to get more robust results accoring to Gajoux.[@2020GaujouxintroductionNMFpackage]. I added `nrun` as a YAML parameter with default of `10` for quick analyses with recommendation to set to `100`-`200` for robust analyses.
+ 
++## Sep 7, 2020
++
++### GATK setup
++
++I began reading through the [documentation for getting started](https://gatk.broadinstitute.org/hc/en-us/articles/360036194592-Getting-started-with-GATK4) with GATK, making sure I have all the necessary dependencies installed from the ['What are the requirements...'](https://gatk.broadinstitute.org/hc/en-us/articles/360035889531) article:
++
++- Java
++- R
++- Python (via `conda`)
++- `conda` environment with the provided ~~[`gatkcondaenv.yml`](https://github.com/broadinstitute/gatk/blob/master/scripts/gatkcondaenv.yml)~~ ==broken link==
++
++I read the '[About the GATK Best Practices](https://gatk.broadinstitute.org/hc/en-us/articles/360035894711-About-the-GATK-Best-Practices)' article.
++
++## Sep 9, 2020
++
++### GATK setup
++
++I began reading the article [Data pre-processing for variant discovery](https://gatk.broadinstitute.org/hc/en-us/articles/360035535912) and comparing it to the pre-processing script I already have in production. The article describes the workflow to take files from FASTQ to analysis-ready BAM files. The workflow is designed to operate on individual samples. The main steps include:
++
++- Map to reference. Tools: `bwa`, `MergeBamAlignments`
++- Mark duplicates. Tools: `MarkDuplicates`, `SortSam`
++- Base quality score recalibration (BQSR). Tools: `BaseRecalibrator`, `ApplyRecalibration`, `AnalyzeCovariates` (optional)
++
++The link to the GitHub repo describing the workflow is at: [gatk4-data-processing](https://github.com/gatk-workflows/gatk4-data-processing)
++
+ <a name="recent-general"></a>
+ 
+ ---
+@@ -1420,6 +1445,26 @@ Judging from the clustering w.r.t. COSMIC signature contribution, there is still
+ 
+ ![COSMIC signature contribution cluster heatmap of multispecies, focus on mice clusters](/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/01--docs/doc--lab-notebook--DNAseq-analysis/lab-notebook--DNAseq-analysis.assets/Screen Shot 2020-09-02 at 1.22.18 AM.png)
+ 
++## Sep 4, 2020
++
++Change of plans. Yesterday Zac said he got my dept. talk pushed back to Oct. 12 so I can continue to work on Jim's grant revision. He sent me a paper (Shin et al., 2017)[@2017ShinPrevalencedetectionlowallelefraction], where they showed that calling variants at very low VAF is quite hard to do, which throws doubt on a lot of the analyses we've been trying to perform. He suggested we finally implement Mutect2 into the variant calling pipeline. I noted that even if we add another variant caller, if the parameters are set up to call variants >5% VAF, then we might still not get a high-confidence low-VAF callset. I'll have to look at Mutect2 documentation to see if it can be used for calling low-VAF variants. Regardless, it will be good to incorporate a second variant caller.
++
++## Sep 5, 2020
++
++I spent the day rewriting and finalizing the draft of the working report for Jim (located in the `05--reports` folder under the project directory).
++
++## Sep 5, 2020
++
++I finished up my working report on mutation signature analysis on the Jackson lab's BRCA1-KO data with BRCA1-mut TCGA tumors and sent it to Zac.
++
++## Sep 7, 2020
++
++Zac looked at my report and liked the analyses I did. Given that there was very little positive results re: BRCA1-wt vs. -del samples, he said we should move on to making implementation of Mutect2 variant calling a priority and see how well we can call variants down to ~1% VAF with it.
++
++I also revisited the paper by Koboldt, et al. 2013[@2014KoboldtUsingVarScanGermline] which had some extra tips for calling low-VAF variants that I had not noticed the first time I read the paper. I'll have to think about how to implement some of those.
++
++
++
+ <a name="recent-brca1"></a>
+ 
+ ---
+
+commit 9643aa1f3ea4a8b0dfe6b2fa1c1844c49f579e00
+Author: Leo Williams <leowill01@icloud.com>
+Date:   Sun Sep 13 15:19:49 2020 -0500
+
+    Move old report to archive
+
+diff --git a/05--reports/BRCA1-related/2020-08-24--Jim-grant-revisions--+DP4filterData/all-BRCA1-KO-mice++TCGA-modr+high-VEP-impact-mut/working-report--2020-08-28.md b/05--reports/BRCA1-related/2020-08-24--Jim-grant-revisions--+DP4filterData/all-BRCA1-KO-mice++TCGA-modr+high-VEP-impact-mut/00--archive/working-report--2020-08-28.md
+similarity index 100%
+rename from 05--reports/BRCA1-related/2020-08-24--Jim-grant-revisions--+DP4filterData/all-BRCA1-KO-mice++TCGA-modr+high-VEP-impact-mut/working-report--2020-08-28.md
+rename to 05--reports/BRCA1-related/2020-08-24--Jim-grant-revisions--+DP4filterData/all-BRCA1-KO-mice++TCGA-modr+high-VEP-impact-mut/00--archive/working-report--2020-08-28.md

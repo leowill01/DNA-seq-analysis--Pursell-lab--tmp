@@ -1,0 +1,25 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup}
+library(tidyverse)
+```
+
+```{r}
+v411l <- read_tsv("Desktop/TEST/V411L--1a511eca-83aa-4b2c-ad04-73b72800e945.vep.indel.vcf.tsv")
+head(v411l, n = 20)
+```
+
+```{r}
+v411l %>% 
+	filter(!(length(REF) == 1 & length(ALT) == 2)) %>% 
+	filter(!(length(REF) == 2 & length(ALT) == 1))
+```
+
+```{r}
+v411l %>% 
+	mutate(REF_length = length(REF))
+```
+

@@ -1,0 +1,41 @@
+```{r setup}
+library(tidyverse)
+library(scales)
+
+theme_set(theme_classic() +
+          theme(panel.grid.major = element_line(colour = "#DDDDDD"),
+                panel.grid.minor = element_line(color = "#FFFFFF"),
+                text = element_text(size = 16, face = "bold")))
+```
+
+```{r load data}
+depth_bed = read_tsv("/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/02--read-mapping-and-postprocessing/04--HCT116-Selina-revisions/03--coverage-stats/results--2020-04-09-203400/out-samtools/depth-b.tsv", skip = 1, col_names = c("CHR", "POS", "DP"))
+depth_bed
+```
+
+```{r depth summary stats}
+summary(depth_bed$DP)
+```
+
+```{r depth quartiles}
+quantile(depth_bed$DP, probs = c(0, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99, 1))
+str(quantile(depth_bed$DP, probs = c(0, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99, 1)))
+```
+
+
+```{r}
+depth_bed %>%
+    ggplot(aes(x = DP)) +
+    geom_histogram(fill = "gray", color = "black") +
+    scale_y_continuous(labels = scales::label_number_si())
+```
+
+
+```{r plot}
+depth_bed %>%
+    filter(DP <= 616) %>%
+ggplot(aes(x = DP)) +
+    geom_histogram(fill = "gray", color = "black") +
+    scale_y_continuous(labels = scales::label_number_si())
+```
+

@@ -1,0 +1,100 @@
+---
+title: 'Match and Add TCGA Case IDs to UUIDs'
+author:
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+params:
+  # default
+  INPUT_VCF_FILEPATH_AND_UUID_TABLE: ''
+  INPUT_UUID_AND_CASE_ID_TABLE: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/expt_00--obtain-and-format-data/Vivian-TCGA-hypermut-POLE-pol-muts/04--GDC-metadata/results--2020-01-13-143415/case_id_UUID_table.tsv'
+  OUTPUT_DIR: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/expt_06--mutation-analysis/Vivian-TCGA-hypermut-POLE-pol-muts/01--VCF-preprocessing'
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    number_sections: yes
+---
+
+# About
+
+## I/O
+
+Inputs:
+
+- a 2-column TSV with 'vcf_filepath' and 'file_uuid' as
+
+Outputs:
+
+# Usage
+
+# Setup
+
+Load packages, set project root/working dir, make results dir, set global chunk options, and set knitr figure output path:
+
+```{r setup}
+# load packages
+library(knitr)
+library(tidyverse)
+
+# set global knit options
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Make results dir
+if (!is.null(params[["optional_output_id"]])) {
+    optional_output_id = params$optional_output_id
+results_dir = paste0(params$OUTPUT_DIR, 
+                     "/results", 
+                     "--", 
+                     optional_output_id, 
+                     as.character(format(Sys.time(), 
+                                         '--%Y-%m-%d-%H%M%S')), 
+                     "/") # TODO: go through and properly format dir and file names. i.e. remove all trailing '/' from dir names and add '/' to beginning of file name when defining. this is to conform to standard format of copying dirnames from the terminal because they dont end with a '/'.
+dir.create(results_dir)
+} else {
+results_dir = paste0(params$OUTPUT_DIR, 
+                     "/results", 
+                     as.character(format(Sys.time(),
+                                         '--%Y-%m-%d-%H%M%S')), 
+                     "/")
+dir.create(results_dir)
+}
+
+# set path for knitr figure output
+opts_chunk$set(dev = "pdf", fig.path = paste0(results_dir, "figures-Rmd/"))
+
+# Set global chunk options
+opts_chunk$set(
+	tidy.opts = list(width.cutoff = 60), 
+	tidy = TRUE, 
+	fig.path = paste0(results_dir, "figures-Rmd/")
+)
+```
+
+Load input data:
+
+```{r load input data}
+# load previously made (vcf_filepath,vcf_uuid) table
+filepath_table <- read_tsv(file = params$INPUT_VCF_FILEPATH_AND_UUID_TABLE)
+
+# load (case_id,uuid) match table
+case_id_match_table <- read_tsv(file = params$INPUT_UUID_AND_CASE_ID_TABLE)
+```
+
+Join the two tables by using the GDC VCF file UUID as the column to match by:
+
+```{r match and join id tables}
+filepath_uuid_case_id_combined_table <- filepath_table %>% 
+    left_join(case_id_match_table, by = c("VCF_basename" = "VCF_UUID"))
+
+# export table
+write_tsv(x = filepath_uuid_case_id_combined_table, path = paste0(results_dir, "vcf-filepath-uuid-caseId-table.tsv"))
+```

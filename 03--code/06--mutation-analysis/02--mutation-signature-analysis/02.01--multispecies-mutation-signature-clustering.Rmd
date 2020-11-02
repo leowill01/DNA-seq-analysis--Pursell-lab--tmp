@@ -1,0 +1,606 @@
+---
+title: 'Clustering of Mutation Signature Analysis Results for Multiple Species'
+author: 'Leo Williams'
+date: |
+  | Created: 2020 01_Jan 30
+  | Updated: `r format(Sys.time(), "%Y %m_%b %d")`
+params:
+  # REQUIRED ----------------------------------------
+  in_info_table_multispecies: ''
+  in_multisp_mut_mat: ''
+  out_dir: ''
+  cosmic_signatures: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/02--data/02--reference-data/COMIC-mutation-signatures/COSMIC-mutation-signatures-v3-no-artif-formatted.csv'
+  denovo_sigs_to_extract: 5
+  number_of_contrib_muts_to_select: 10
+  # OPTIONAL ----------------------------------------
+  out_opt_id: '' # string, empty string, or NULL
+  info_table_cluster_categories: !r c(NULL) # vector or null
+  info_table_cluster_categories_colors: !r list(NULL) # list or NULL
+  pheat_cutree_rows_cosmic: NULL # integer or NULL
+  pheat_cutree_rows_denovo: NULL # integer or NULL
+  remove_samples: no # yes or no
+  list_sample_names_to_remove: NULL' # filepath to newline-separated strings or NULL
+---
+
+# About
+
+This script take the resulting combined mutation matrices from multiple species from the previous mutation signatures analysis script, combines them, then clusters in a heatmap all samples, independent of species. This is due to the first part of the mutational signatures analysis script referencing the genome, which does not work over multiple species.
+
+# Setup
+
+```{r setup}
+
+# 1. load packages ----
+library(knitr)
+library(NMF)
+library(MutationalPatterns)
+library(gridExtra)
+library(pheatmap)
+library(tidyverse)
+
+# 2. set global knit options ----
+opts_knit$set(
+    # set project root dir as working dir
+    root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# 3. Set working dir for setup chunk ----
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# 4. Make results dir ----
+if (!is.null(params[["out_opt_id"]])) {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')),
+                         "--",
+                         params$out_opt_id)
+    dir.create(dir_results)
+} else {
+    dir_results = paste0(params$out_dir,
+                         "/results",
+                         as.character(format(Sys.time(),
+                                             '--%Y-%m-%d-%H%M%S')))
+    dir.create(dir_results)
+}
+
+# * 4.1. make results subdirectories ----
+dir_results_data = paste0(dir_results, "/data")
+dir.create(dir_results_data)
+dir_results_tables = paste0(dir_results, "/tables")
+dir.create(dir_results_tables)
+dir_results_plots = paste0(dir_results, "/plots")
+dir.create(dir_results_plots)
+
+# dir_tmp = paste0(dir_results, "/tmp")
+# dir.create(dir_tmp)
+
+# 5. get filepath of current script to copy into results dir ----
+src_filepath = rstudioapi::getSourceEditorContext()$path
+file.copy(from = src_filepath, to = dir_results)
+
+# # 6. Export shell environment variables ----
+# Sys.setenv(
+# 	# results dirs and subdirs
+# 	dir_results = dir_results, 
+# 	dir_results_plots = dir_results_plots, 
+# 	dir_results_tables = dir_results_tables, 
+# 	# tmp dir
+# 	dir_tmp = dir_tmp,
+# 	# filepath of current script
+# 	src_filepath = src_filepath
+# )
+# 
+# # 7. Set global chunk options ----
+# opts_chunk$set(
+# 	tidy.opts = list(width.cutoff = 60),
+# 	tidy = TRUE,
+# 	dev = "pdf",
+# 	fig.path = paste0(dir_results, "/figures-Rmd/")
+# )
+# 
+# # 8. set ggplot theme ----
+# theme_set(theme_classic() +
+#           theme(panel.grid.major = element_line(colour = "#DDDDDD"),
+#                 panel.grid.minor = element_line(color = "#FFFFFF"),
+#                 text = element_text(size = 16, face = "bold")))
+```
+
+# Load Input Data
+
+Load combined human/mouse input sample info table:
+
+```{r load input table}
+in_info_table_multisp <- read_tsv(params$in_info_table_multisp,
+                                  col_types = cols(
+                                      individual = col_factor(),
+                                      is_tumor = col_factor(),
+                                      `is_pre-recombination_normal` = col_factor()
+                                  ))
+in_info_table_multisp
+```
+
+If samples to be removed, load list of sample names to be removed:
+```{r load sample names to remove}
+if (params$remove_samples == TRUE) {
+    tSampleNamesRm = read_tsv(file = params$list_sample_names_to_remove, col_names = "sample_name_rm")
+    # tSampleNamesRm = tSampleNamesRm[[1]]
+    tSampleNamesRm
+}
+```
+
+Remove samples from info table if indicated:
+```{r remove samples}
+if (params$remove_samples == TRUE) {
+    in_info_table_multisp = in_info_table_multisp %>%
+        filter(!(sample_name %in% tSampleNamesRm[["sample_name_rm"]]))
+    in_info_table_multisp
+}
+```
+
+Remove samples from
+
+Assign pheatmap annotations:
+
+```{r assign pheatmap annotations}
+# from input info table, define categorical annotations for plotting on pheatmaps
+# define categorical annotations
+if (exists("info_table_cluster_categories", where = params)) {
+annotations = data.frame(
+    in_info_table_multisp[,params$info_table_cluster_categories], 
+    row.names = in_info_table_multisp$sample_name
+    )
+}
+```
+
+Load combined human/mouse mutation matrix and remove samples if indicated by params:
+
+```{r load human contrib table}
+tib_mut_mat_multisp <- read_tsv(params$in_multisp_mut_mat)
+
+# remove samples if indicated
+if (params$remove_samples == TRUE) {
+    tib_mut_mat_multisp = tib_mut_mat_multisp %>%
+        # select trinuc header col, then only select sample cols NOT in the list of excluded sample names
+        select(`trinucleotide context`, !(matches(tSampleNamesRm[["sample_name_rm"]])))
+}
+
+# transform tibble to matrix format as needed by MutationalPatterns and NMF. Dont include trinuc context - add as rownames after
+mut_mat_multisp = as.matrix(tib_mut_mat_multisp[, -1])
+
+# add trinuc contexts as matrix rownames
+rownames(mut_mat_multisp) = tib_mut_mat_multisp[[1]]
+
+# print 5x5 sample of complete matrix
+mut_mat_multisp[1:5, 1:5]
+```
+
+# Analysis
+
+<!-- ## Transform input tables -->
+
+<!-- Convert input mutation signature contribution tibble/data frame back into a matrix: -->
+
+<!-- ```{r convert mut sig contrib back to matrix} -->
+<!-- combined_sig_contrib_mat <- in_multisp_mut_mat %>%  -->
+<!--     select(-sample_name) %>% -->
+<!--     as.matrix() -->
+
+<!-- rownames(combined_sig_contrib_mat) = in_multisp_mut_mat[["sample_name"]] -->
+<!-- ``` -->
+
+## De Novo Mutation Signatures
+
+Add a small pesudocount to the mutation count matrix
+
+```{r psudocount}
+mut_mat_multisp = mut_mat_multisp + 0.001
+```
+
+From "An introduction to NMF package" (Gaujoux 2018):
+
+> A critical parameter in NMF is the factorization rank r. It deﬁnes the number of metagenes used to approximate the target matrix. Given a NMF method and the target matrix, a common way of deciding on r is to try diﬀerent values, compute some quality measure of the results, and choose the best value according to this quality criteria.
+
+> Several approaches have then been proposed to choose the optimal value of r. For example, (Brunet 2004) proposed to ***take the ﬁrst value of r for which the cophenetic coefficient starts decreasing,*** (Hutchins 2008) suggested to ***choose the ﬁrst value where the RSS curve presents an inﬂection point***, and (Frigyesi 2008) considered ***the smallest value at which the decrease in the RSS is lower than the decrease of the RSS obtained from random data***.
+
+> When the seeding method is stochastic, multiple runs are usually required to achieve stability or a resonable result. This can be done by setting argument nrun to the desired value. For performance reason we use nrun=5 here, but a typical choice would lies between 100 and 200:
+
+Use the NMF package to generate an estimate rank plot:
+
+```{r estimate nmf rank}
+estimate = nmf(mut_mat_multisp,
+               rank = 2:ncol(mut_mat_multisp),
+               method = "brunet",
+               nrun = 10,
+               seed = 123456) # default
+```
+
+Plot the NMF estimate:
+
+```{r plot nmf est}
+plot(estimate)
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/01--NMF-rank-estimate.pdf"), height = 10, width = 20)
+```
+
+Extract signatures based on the chosen factorization rank according to results from the NMF rank survey:
+
+```{r sig extract NMF}
+# TODO: automatically analyze the best rank by analyzing the values in 'estimate' e.g. when cophenetic begins to drop ||OR|| split script into pre-NMF and post-NMF to allow for changing extraction rank based on intermediate results of NMF estimate?
+# Extract signatures based on qualitative analysis of rank estimate
+# FIXME: generalize rank selection based on the previous estimate
+de_novo_nmf_res = extract_signatures(mut_mat_multisp, rank = params$denovo_sigs_to_extract, nrun = 10)
+```
+
+Plot the 96 trinucleotide distributions of the de novo mutation signatures:
+
+```{r plot nmf sigs}
+ymax_nmf_plot = max(de_novo_nmf_res$signatures / colSums(de_novo_nmf_res$signatures))
+plot_96_profile(de_novo_nmf_res$signatures,
+                # ymax = ymax_nmf_plot + (0.2*ymax_nmf_plot))
+                ymax = round(ymax_nmf_plot + 0.05, digits = 1))
+
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/02--de-novo-NMF-sigs.pdf"),
+       height = (1.2*ncol(de_novo_nmf_res$signatures)),
+       width = 12)
+```
+
+Plot the de novo signature contributions in a bar plot:
+
+```{r}
+    pc1 = plot_contribution(de_novo_nmf_res$contribution,
+                        de_novo_nmf_res$signature,
+                        mode = "relative") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+pc1
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/03--de-novo-NMF-sigs-rel-contrib.pdf"),
+       height = 12,
+       width = (8+ 0.2 * ncol(de_novo_nmf_res$contribution)),
+       limitsize = F)
+
+# Plot absolute contribution
+pc2 = plot_contribution(de_novo_nmf_res$contribution,
+                        de_novo_nmf_res$signature,
+                        mode = "absolute") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    ylab("Absolute contribution (no. of mutations)")
+pc2
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/04--de-novo-NMF-sigs-abs-contrib.pdf"),
+       height = 12,
+       width = (8 + 0.2 * ncol(de_novo_nmf_res$contribution)),
+       limitsize = F)
+
+# Combine both plots
+grid.arrange(pc1, pc2)
+# save fig
+pdf(file = paste0(dir_results_plots, "/05--de-novo-NMF-sigs-rel-abs-contribs.pdf"),
+    height = 12,
+    width = (8 + 0.2 * ncol(de_novo_nmf_res$contribution)))
+grid.arrange(pc1, pc2)
+dev.off()
+```
+
+Plot heatmap of sample de novo signature contribution with hierarchical clustering and labeled metadata:
+
+```{r plot de novo heatmap}
+nmf_res_contrib = as_tibble(de_novo_nmf_res$contribution,
+							rownames = NA)
+# View(nmf_res_contrib)
+nmf_res_contrib = t(nmf_res_contrib)
+nmf_res_contrib_norm = nmf_res_contrib/rowSums(nmf_res_contrib)
+colnames(nmf_res_contrib_norm) = as.character(1:ncol(nmf_res_contrib_norm))
+# View(nmf_res_contrib_norm)
+
+# ADAPTED FROM COSMIC HEATMAP ---
+# save plot (must save before plotting inline for pheatmap)
+# open pdf device
+pdf(file = paste0(dir_results_plots, "/06--de-novo-NMF-sig-contrib-heatmap.pdf"),
+    width = (3 + (1 * ncol(nmf_res_contrib_norm))),
+    height = (2 + (0.2 * nrow(nmf_res_contrib_norm)) + (0.2 * length(params$info_table_cluster_categories_colors))))
+# render heatmap
+pheatmap(mat = nmf_res_contrib_norm,
+         cluster_rows = T, cluster_cols = F,
+         clustering_method = "complete",
+         annotation_row = if (exists("annotations")) annotations else NA,
+         annotation_colors = if (exists("info_table_cluster_categories", where = params)) params$info_table_cluster_categories_colors else NA,
+         cutree_rows = if ((exists("pheat_cutree_rows_denovo", where = params))) params$pheat_cutree_rows_denovo else NA,
+         treeheight_row = 100,
+         main = "Hierarchical Clustering by de novo NMF Mutation Signature Contribution",
+         angle_col = 90, display_numbers = F)
+# turn off pdf device
+dev.off()
+
+# plot inline
+# FIXME: When inline plot is plotted first and then PDF plots are subsequently saved, the first saved PDF plot is corrupted
+pheatmap(mat = nmf_res_contrib_norm,
+         cluster_rows = T, cluster_cols = F,
+         clustering_method = "complete",
+         annotation_row = if (exists("annotations")) annotations else NA,
+         annotation_colors = if (exists("info_table_cluster_categories", where = params)) params$info_table_cluster_categories_colors else NA,
+         cutree_rows = if ((exists("pheat_cutree_rows_denovo", where = params))) params$pheat_cutree_rows_denovo else NA,
+         treeheight_row = 100,
+         main = "Hierarchical Clustering by de novo NMF Mutation Signature Contribution",
+         angle_col = 90, display_numbers = F)
+```
+
+Compare the reconstructed mutational profile with the original profile of the first sample
+
+```{r}
+# for a single sample
+plot_compare_profiles(mut_mat_multisp[,1],
+                      de_novo_nmf_res$reconstructed[,1],
+                      profile_names = c("Original", "Reconstructed"))
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/07--denovo-reconstruct-1Sample.pdf"),
+       width = 8,
+       height = 6)
+```
+
+Calculate cosine similarity between all original and reconstructed mutational profile with `cos_sim_matrix`:
+
+```{r calc de novo cos sim}
+# Calculate all pairwise cosine similarities
+cos_sim_denovo_ori_rec = cos_sim_matrix(mut_mat_multisp, de_novo_nmf_res$reconstructed)
+
+# Extract cosine similarities per sample between original and reconstructed
+cos_sim_denovo_ori_rec = as.data.frame(diag(cos_sim_denovo_ori_rec))
+
+# Adjust data frame for plotting with ggplot
+colnames(cos_sim_denovo_ori_rec) = "cos_sim"
+cos_sim_denovo_ori_rec$sample = row.names(cos_sim_denovo_ori_rec)
+
+# Summary stats on cos_sim
+summary(cos_sim_denovo_ori_rec$cos_sim)
+```
+
+Plot the cosine similarities between original and reconstructed sample profiles"
+
+```{r plot de novo cos sim}
+# Make barplot
+ggplot(cos_sim_denovo_ori_rec, aes(x = sample, y = cos_sim)) +
+  geom_bar(stat = "identity") +
+  # coord_cartesian(ylim=c(0.8,1)) +
+  # coord_flip(ylim=c(0.8,1)) +
+  ylab("Cosine similarity — De Novo Signatures\n Original vs. Reconstructed") +
+  xlab("") +
+  # reverse order of the samples such that first is up
+  # xlim(rev(levels(factor(cos_sim_ori_rec$sample)))) +
+  theme_bw() +
+  theme(panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+		axis.text.x = element_text(hjust = 1, angle = 90)) +
+  # add cut off line
+  geom_hline(aes(yintercept=.95))
+# Save plot
+ggsave(filename = paste0(dir_results_plots, "/08--denovo-cos-sim.pdf"),
+       height = 6,
+       width = (6 + (.1 * nrow(cos_sim_denovo_ori_rec))),
+       limitsize = F)
+```
+
+## COSMIC Mutation Signatures
+
+Download the [COSMIC v3 mutation signatures](https://cancer.sanger.ac.uk/cosmic/signatures/SBS/) in table format and reformat them to the format `MutationalPatterns` uses in the introductory guide when describing how to download the COSMIC v2 signatures data table.
+
+Load either the full COSMICv3 signatures or a subset that excludes purported artifactual signatures
+
+```{r load COSMIC signatures}
+# Old - for COSMICv2:
+# Download mutational signatures from COSMIC website:
+# sp_url = paste("https://cancer.sanger.ac.uk/cancergenome/assets/",
+#                "signatures_probabilities.txt",
+#                sep = "")
+# cosmicv3_sigs_no_arts = read.table(sp_url, sep = "\t", header = T)
+
+# Read in COSMICv3 sigs table
+cancer_signatures = read.csv(params$cosmic_signatures, header = T)
+
+# Match order of mutation types to MutationalPatterns standard
+new_order = match(row.names(mut_mat_multisp), cancer_signatures$Somatic.Mutation.Type)
+
+# Reorder cancer signatures dataframe
+cancer_signatures = cancer_signatures[as.vector(new_order),]
+
+# Add trinucleotide changes as row.names
+row.names(cancer_signatures) = cancer_signatures$Somatic.Mutation.Type
+
+# Keep only 96 contributions of the signatures in the matrix
+cancer_signatures = as.matrix(cancer_signatures[,4:52])
+
+cancer_signatures[1:6, 1:6]
+```
+
+Fit mutation matrix to COSMIC signatures:
+
+```{r fir mut mat to cosmic sigs}
+fit_res = fit_to_signatures(mut_mat_multisp, cancer_signatures)
+```
+
+Plot the optimal contribution of the COSMIC signatures in each sample as a stacked barplot:
+
+```{r plot cosmic sig contrib rowsums}
+# calculate distribution of how many mutations each signature contributes across all samples
+contribution_rowsums = tibble(signature = factor(rownames(fit_res$contribution),
+                                                 levels = rownames(fit_res$contribution)),
+                              total_contribution = rowSums(fit_res$contribution))
+
+# plot barplot
+ggplot(contribution_rowsums, aes(x = signature, y = total_contribution)) +
+    geom_col() +
+    theme_light() +
+    theme(axis.text.x = element_text(angle = 90))
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/09--total-mut-contrib-by-COSMIC-sig.pdf"),
+       height = 6,
+       width = 8)
+
+# Select sigs that contribute more than 10 mutations across all samples
+# TODO: add param to select signatures based on either 1) total muts contributed across all samples, or 2) % muts contributed across all samples
+select = which(rowSums(fit_res$contribution) > params$number_of_contrib_muts_to_select)
+# show all rows (signatures) that were selected
+rownames(fit_res$contribution[select,])
+# other selection criteria based on Temko 2019 [@2018TemkoSomaticPOLEexonuclease]: only select signatures that contribute a certain % of the total mutations across samples
+select_pct = which(rowSums(fit_res$contribution) >=
+                (0.01 * sum(rowSums(fit_res$contribution))))
+rownames(fit_res$contribution[select_pct,])
+```
+
+Plot COSMIC signature contributions for each sample:
+
+```{r plot cosmic sig contrib}
+# plot relative contribution barplot
+pc3 = plot_contribution(fit_res$contribution[select,],
+                  cancer_signatures[,select],
+                  # mode = "relative")
+                  mode = "relative") +
+	theme(axis.text.x = element_text(angle = 90, hjust = 1))
+pc3
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/10--COSMIC-contrib-rel.pdf"),
+       width = 4 + 0.2 * ncol(fit_res$contribution[select,]),
+       height = 12,
+       limitsize = F)
+
+# Plot absolute contribution barplot
+pc4 = plot_contribution(fit_res$contribution[select,],
+                        cancer_signatures[,select],
+                        mode = "absolute") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+pc4
+# save fig
+ggsave(filename = paste0(dir_results_plots, "/11--COSMIC-contrib-abs.pdf"),
+       width = 4 + 0.2 * ncol(fit_res$contribution[select,]),
+       height = 12,
+       limitsize = F)
+```
+
+Normalize COSMIC signature contribution according to internal workings of the `plot_contribution_heatmap()` function in `MutationalPatterns` and export for reproducibility:
+
+```{r normalize cosmic sig contrib and export}
+# normalize COSMIC sigs contribution (adapted from plot_contribution_heatmap() function)
+cosmic_res_contrib = as_tibble(fit_res$contribution,
+                               rownames = NA)
+cosmic_res_contrib = t(cosmic_res_contrib)
+cosmic_res_contrib_norm = cosmic_res_contrib/rowSums(cosmic_res_contrib)
+# export to .tsv
+write_tsv(x = as_tibble(cosmic_res_contrib_norm, rownames = "sample_name"),
+          path = paste0(dir_results_tables, "/01--cosmic-contrib-norm.tsv"))
+```
+
+Plot COSMIC signature contribution heatmap with hierarchical clustering based on combined signatured contribution similarity, and sample metadata categorical labels:
+
+```{r plot cosmic sig contrib heatmap}
+# save plot 1
+pdf(file = paste0(dir_results_plots, "/12--heatmap-COSMIC-contrib.pdf"),
+    width = 12,
+    height = 3 + (0.1 * nrow(cosmic_res_contrib_norm)) + (0.25 * length(params$info_table_cluster_categories_colors)))
+pheatmap(mat = cosmic_res_contrib_norm,
+		 cluster_rows = T, cluster_cols = F,
+		 clustering_method = "complete",
+		 annotation_row = if (exists("annotations")) annotations else NA,
+		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA,
+		 cutree_rows = if ((exists("pheat_cutree_rows_cosmic", where = params))) params$pheat_cutree_rows_cosmic else NA,
+		 treeheight_row = 100,
+		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",
+		 angle_col = 90, display_numbers = F)
+dev.off()
+
+# plot inline
+# FIXME: When inline plot is plotted first and then PDF plots are subsequently saved, the first saved PDF plot is corrupted
+pheatmap(mat = cosmic_res_contrib_norm,
+		 cluster_rows = T, cluster_cols = F,
+		 clustering_method = "complete",
+		 annotation_row = if (exists("annotations")) annotations else NA,
+		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA,
+		 cutree_rows = if ((exists("pheat_cutree_rows_cosmic", where = params))) params$pheat_cutree_rows_cosmic else NA,
+		 treeheight_row = 100,
+		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",
+		 angle_col = 90, display_numbers = F)
+```
+Plot same heatmap except display numbers inside cells:
+```{r plot cosmic sig contrib heatmap nums}
+# save plot 1
+pdf(file = paste0(dir_results_plots, "/13--heatmap-COSMIC-contrib-w-nums.pdf"),
+    width = 20,
+    height = 4 + (0.1 * nrow(cosmic_res_contrib_norm)) + (0.25 * length(params$info_table_cluster_categories_colors)))
+pheatmap(mat = cosmic_res_contrib_norm,
+		 cluster_rows = T, cluster_cols = F,
+		 clustering_method = "complete",
+		 annotation_row = if (exists("annotations")) annotations else NA,
+		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA,
+		 cutree_rows = if ((exists("pheat_cutree_rows_cosmic", where = params))) params$pheat_cutree_rows_cosmic else NA,
+		 treeheight_row = 100,
+		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",
+		 angle_col = 90, display_numbers = T)
+dev.off()
+
+# plot inline
+# FIXME: When inline plot is plotted first and then PDF plots are subsequently saved, the first saved PDF plot is corrupted
+pheatmap(mat = cosmic_res_contrib_norm,
+		 cluster_rows = T, cluster_cols = F,
+		 clustering_method = "complete",
+		 annotation_row = if (exists("annotations")) annotations else NA,
+		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA,
+		 cutree_rows = if ((exists("pheat_cutree_rows_cosmic", where = params))) params$pheat_cutree_rows_cosmic else NA,
+		 treeheight_row = 100,
+		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",
+		 angle_col = 90, display_numbers = T)
+```
+
+<!-- TODO: plot specified COSMIC sigs of interest for easy reference? -->
+
+<!-- TODO: add calculation of per-sample cosine similarity to COSMIC sigs? -->
+
+
+<!-- ## Plot cluster heatmap -->
+
+<!-- Plot heatmap with clustering based on signature contribution similarity -->
+
+<!-- ```{r plot COSMIC mutation signature contribution heatmap 1} -->
+<!-- # save plot -->
+<!-- pdf(file = paste0(results_dir, "/19.01--pheat-cosmic-contrib.pdf"),  -->
+<!--     width = 12, -->
+<!--     height = 6 + 0.1 * nrow(combined_sig_contrib_mat)) -->
+
+<!-- pheatmap(mat = combined_sig_contrib_mat,  -->
+<!--          cluster_rows = T, cluster_cols = F,  -->
+<!--          clustering_method = "complete",  -->
+<!-- 		 annotation_row = if (exists("annotations")) annotations else NA,  -->
+<!-- 		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA, -->
+<!-- 		 treeheight_row = 100,  -->
+<!-- 		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",  -->
+<!-- 		 angle_col = 90, display_numbers = F -->
+<!-- 		 ) -->
+<!-- 		 # cutree_rows = if ((exists("pheat_cutree_rows", where = params))) params$pheat_cutree_rows else NA,  -->
+<!-- dev.off() -->
+
+<!-- # plot inline -->
+<!-- pheatmap(mat = combined_sig_contrib_mat,  -->
+<!--          cluster_rows = T, cluster_cols = F,  -->
+<!--          clustering_method = "complete",  -->
+<!-- 		 annotation_row = if (exists("annotations")) annotations else NA,  -->
+<!-- 		 annotation_colors = if (exists("info_table_cluster_categories_colors", where = params)) params$info_table_cluster_categories_colors else NA, -->
+<!-- 		 treeheight_row = 100,  -->
+<!-- 		 main = "COSMIC Mutation Signature Contribution & Sample Clustering",  -->
+<!-- 		 angle_col = 90, display_numbers = F -->
+<!-- 		 ) -->
+<!-- 		 # cutree_rows = if ((exists("pheat_cutree_rows", where = params))) params$pheat_cutree_rows else NA,  -->
+<!-- ``` -->
+
+# Save Image
+
+Save all current session data to a file in the results folder. You can load this file back and inspect any analyses using the actual data that was produced.
+
+```{r}
+save.image(file = paste0(dir_results, "/env-data.RData"))
+```
+
+# Session Information
+
+```{r env, comment=NA}
+write_lines(capture.output(sessionInfo()), path = paste0(dir_results, "/env-info.txt"))
+```
+

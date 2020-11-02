@@ -1,0 +1,107 @@
+---
+title: "Get TCGA Case IDs from File UUIDs"
+author: "Leo Williams"
+output:
+  html_document:
+    toc: yes
+params:
+  # Variables
+  output_dir: ""
+  gdc_manifest_file: ""
+---
+
+# About
+
+This workflow is adapted from the article [GenomicDataCommons Example: UUID to TCGA and TARGET Barcode Translation](https://seandavi.github.io/post/2017-12-29-genomicdatacommons-id-mapping/) and uses the `GenomicDataCommons` R Bioconductor package.
+
+# Setup
+
+```{r setup}
+# Load packages 
+library(knitr)
+library(tidyverse)
+library(GenomicDataCommons)
+
+# Set global knit options
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Make results dir
+results_dir = paste0(params$output_dir, "/results", as.character(format(Sys.time(), '--%Y-%m-%d-%H%M%S')), "/")
+dir.create(results_dir)
+opts_chunk$set(dev = "pdf", fig.path = paste0(results_dir, "figures-Rmd/"))
+
+# Set global chunk options
+opts_chunk$set(
+	tidy.opts = list(width.cutoff = 60), 
+	tidy = TRUE, 
+	fig.path = "figures/"
+)
+```
+
+# Load data
+
+## Read in list of file UUIDs
+
+Using the GDC manifest used to download the files, read in the manifest file as a table
+
+```{r load manifest}
+gdc_manifest = read_tsv(params$gdc_manifest_file)
+glimpse(gdc_manifest)
+head(gdc_manifest)
+```
+
+Extract just the GDC file UUIDs
+
+```{r get uuids}
+file_uuids = as_tibble(gdc_manifest$id)
+glimpse(file_uuids)
+head(file_uuids)
+```
+
+# Get TCGA case IDs for a list of file UUIDs using `GenomicDataCommons` package
+
+## Write function to translate list of UUIDs to GDC submitter IDs (i.e. case IDs / TCGA barcodes)
+
+Define function
+
+```{r}
+TCGAtranslateID <- function(file_ids, legacy = FALSE) {
+	info = files(legacy = legacy) %>% 
+		filter(~ file_id %in% file_ids) %>% 
+		select('cases.samples.submitter_id') %>% 
+		results_all()
+	# The mess of code below is to extract TCGA barcodes
+    # id_list will contain a list (one item for each file_id)
+    # of TCGA barcodes of the form 'TCGA-XX-YYYY-ZZZ'
+    id_list = lapply(info$cases,function(a) {
+        a[[1]][[1]][[1]]})
+    # so we can later expand to a data.frame of the right size
+    barcodes_per_file = sapply(id_list,length)
+    # And build the data.frame
+    return(data.frame(file_id = rep(ids(info),barcodes_per_file),
+                      submitter_id = unlist(id_list)))
+}
+```
+
+## Translate `file_uuids`
+
+Get case/submitter ID from input list of file UUIDs
+
+```{r}
+res = TCGAtranslateID(file_uuids)
+head(res)
+```
+
+Save [UUID <-> case ID] translation table
+
+```{r write ID conversion table}
+# TODO: remove trailing 'gdc_manifest' part of filename
+write_tsv(x = res, path = paste0(results_dir, tools::file_path_sans_ext(basename(params$gdc_manifest_file)), "-UUID-caseID-table.tsv"))
+```

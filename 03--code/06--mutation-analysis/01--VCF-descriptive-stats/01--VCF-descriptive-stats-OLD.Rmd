@@ -1,0 +1,950 @@
+---
+# title: 'Mutation Analysis: Descriptive VCF Statistics'
+# author: 'Leo Williams | Pursell Lab | Tulane University School of Medicine'
+# date: |
+#   | Created: 2020 01_Jan 08
+#   | Updated: `r format(Sys.time(), "%B %d, %Y")`
+# # output:
+# #   html_notebook:
+# #     toc: yes
+# #     toc_float: yes
+# params:
+#   # REQUIRED ----------------------------------------
+#   IN_VCF_INFO_TABLE: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/12--ribontMetabMut--Chabes/2020-07-21--targetseqOnly-VAF05/01--info-table.tsv' # VCFs must be annotated with VEP. Make sure there are no extra empty delimiter-indicated rows or columns 
+#   OUT_DIR: '/Volumes/Pursell-Lab-HD/Pursell-lab/02--projects/project_02--DNA-seq-analysis/04--analysis/06--mutation-analysis/12--ribontMetabMut--Chabes/2020-07-21--targetseqOnly-VAF05/03--results-desc-stats'
+#   SPECIES: 'mouse' # {"mouse"|"human"}
+#   # OPTIONAL ----------------------------------------
+#   OPTIONAL_OUTPUT_ID: 'scripting' # string or NULL (or empty string)
+#   # TMB_PLOT_FACET: no # {{TRUE|yes} | {FALSE|no}}
+#   # TMB_PLOT_FACET_NUM: NULL # {1|2}; number of how many variables to facet. dont do more than 4
+#   # TMB_PLOT_FACET_FACTORS: !r c(NULL) # (type: character vector) of input table variables to facet by. length must match TMB_PLOT_FACET_NUM. factors go by: row facet 1, col facet 1, row facet 2, col facet 2
+#   # TMB_PLOT_FILL_FACTOR: NULL # (type: string) usually the sample name/main group (e.g. colors by the same grouping as on independent axis). if unwanted, put facet factor [1] or "gray" if not facetting
+---
+
+# collapse
+
+<!-- # About -->
+
+<!-- This script takes an info table for a set of VCF files as input and outputs various descriptive statistics on those files. -->
+
+<!-- Required columns for input info table (as of ***2020-Feb-18***): -->
+
+<!-- - **File variables**: -->
+<!--     - `absolute_filepath` -->
+<!--     - `file_basename` -->
+<!--     - `sample_name` - ***MUST BE UNIQUE***. Usually a concatenation of the other sample name variables -->
+
+<!-- ## Usage -->
+
+<!-- Fill in YAML params according to desired analysis. -->
+
+<!-- # Setup -->
+
+<!-- Load packages, set project root/working dir, make results dir, set global chunk options, and set knitr figure output path: -->
+
+<!-- ```{r setup} -->
+<!-- # load packages ---- -->
+<!-- library(knitr) -->
+<!-- library(scales) -->
+<!-- library(BSgenome) -->
+<!-- if (params$SPECIES == "mouse") { -->
+<!--     library(BSgenome.Mmusculus.UCSC.mm10) -->
+<!--     ref_genome = BSgenome.Mmusculus.UCSC.mm10 -->
+<!-- } -->
+<!-- if (params$SPECIES == "human") { -->
+<!--     library(BSgenome.Hsapiens.UCSC.hg38) -->
+<!--     ref_genome = BSgenome.Hsapiens.UCSC.hg38 -->
+<!-- } -->
+<!-- library(BSgenome) -->
+<!-- library(tidyverse) -->
+
+
+<!-- # set global knit options ---- -->
+<!-- opts_knit$set( -->
+<!-- 	# Set working dir as project root dir -->
+<!-- 	root.dir = rprojroot::find_rstudio_root_file() -->
+<!-- ) -->
+
+<!-- # Set working dir for setup chunk ---- -->
+<!-- setwd(rprojroot::find_rstudio_root_file()) -->
+<!-- getwd() -->
+
+<!-- # Make results dir ---- -->
+<!-- if (!is.null(params[["OPTIONAL_OUTPUT_ID"]])) { -->
+<!--     dir_results = paste0(params$OUT_DIR, -->
+<!--                          "/results", -->
+<!--                          as.character(format(Sys.time(), '--%Y-%m-%d-%H%M%S')), -->
+<!--                          "--", -->
+<!--                          params$OPTIONAL_OUTPUT_ID) -->
+<!--     dir.create(dir_results) -->
+<!-- } else { -->
+<!--     dir_results = paste0(params$OUT_DIR, -->
+<!--                          "/results", -->
+<!--                          as.character(format(Sys.time(), -->
+<!--                                              '--%Y-%m-%d-%H%M%S'))) -->
+<!--     dir.create(dir_results) -->
+<!-- } -->
+
+<!-- # * make subdirs for tables and plots -->
+<!-- # TODO: implement these paths to file write outs !AND! make sure other functions can find their new locations! -->
+<!-- dir_results_tables = paste0(dir_results, "/tables") -->
+<!-- dir.create(dir_results_tables) -->
+<!-- dir_results_tables_variants = paste0(dir_results, "/tables/variants") -->
+<!-- dir.create(dir_results_tables_variants) -->
+<!-- dir_results_tables_tmb = paste0(dir_results, "/tables/TMB") -->
+<!-- dir.create(dir_results_tables_tmb) -->
+<!-- dir_results_plots = paste0(dir_results, "/plots") -->
+<!-- dir.create(dir_results_plots) -->
+
+
+
+<!-- # Set global chunk options ---- -->
+<!-- # opts_chunk$set( -->
+<!-- # 	tidy.opts = list(width.cutoff = 60), -->
+<!-- # 	tidy = TRUE, -->
+<!-- # 	dev = "pdf", -->
+<!-- # 	fig.path = paste0(dir_results, "/figures-Rmd/") -->
+<!-- # ) -->
+
+
+<!-- # make dir to store tmp data ---- -->
+<!-- dir_tmp = paste0(dir_results, "/tmp") -->
+<!-- dir.create(dir_tmp) -->
+
+<!-- # export Rmd variables as env variables for access by shell chunks ---- -->
+<!-- # export results and tmp dirs -->
+<!-- Sys.setenv(DIR_RESULTS = dir_results, -->
+<!--            DIR_TMP = dir_tmp, -->
+<!--            DIR_RESULTS_TABLES = dir_results_tables, -->
+<!--            DIR_RESULTS_TABLES_VARIANTS = dir_results_tables_variants, -->
+<!--            DIR_RESULTS_TABLES_TMB = dir_results_tables_tmb, -->
+<!--            DIR_RESULTS_PLOTS = dir_results_plots) -->
+
+<!-- # TODO: use apply or get() to dynamically export all params as shell env variables -->
+<!-- ``` -->
+
+<!-- Set ggplot theme: -->
+<!-- ```{r set ggplot theme} -->
+<!-- ``` -->
+
+
+# Load & prep data
+
+<!-- Read in input info table -->
+
+<!-- ```{r load info table} -->
+<!-- inputInfoTable = read_tsv(params$IN_VCF_INFO_TABLE) -->
+<!-- glimpse(inputInfoTable) -->
+<!-- head(inputInfoTable) -->
+<!-- ``` -->
+
+<!-- Set/export relevant variables for access by shell chunks -->
+
+<!-- ```{r set info table shell vars} -->
+<!-- # make var with abs filepaths of VCF files -->
+<!-- abs_filepaths_file = paste0(dir_tmp, "/absolute_filepaths.tsv") -->
+
+<!-- # write abs filepaths to TSV file -->
+<!-- write_tsv(x = inputInfoTable["absolute_filepath"], path = abs_filepaths_file, col_names = F) -->
+
+<!-- # set the TSV filepath as a shell var -->
+<!-- Sys.setenv(ABS_FILEPATHS_TSV = abs_filepaths_file) -->
+<!-- ``` -->
+
+<!-- NOTE: Removed whole chunk for n sample names / name lengths bc it kept freezing -->
+
+<!-- Copy all VCF files to working tmp folder with: -->
+<!-- ```{zsh cp vcfs, engine.opts='-i'} -->
+<!-- while read line ; do -->
+<!-- 	cp "$line" "$DIR_TMP" -->
+<!-- done < "$ABS_FILEPATHS_TSV" -->
+<!-- ``` -->
+
+<!-- `bgzip` all VCFs and index with `tabix` (for use with `bcftools`): -->
+
+<!-- ```{zsh bgzip and index, engine.opts='-i'} -->
+<!-- for i in "$DIR_TMP"/*.vcf ; do -->
+<!-- 	bgzip -c "$i" > "${i}.gz" -->
+<!-- 	tabix "${i}.gz" -->
+<!-- done -->
+<!-- ``` -->
+# Analysis
+
+## Tumor mutation burden
+
+
+## Subset VCFs
+
+For each sample's master VCF, subset into additional VCFs for the following:
+- All SNVs only
+- All INDELs only
+- Simple INDELs only (1 base)
+- Complex INDELs only (>1 base)
+
+And then again `bgzip` and `tabix` index the resulting subset VCF files.
+
+<!-- First, use `vep` to convert each VCF into a ***human-readable*** TSV containing all variants (SNVs and INDELs). If using VEP-annotated VCFs as input, it will simply erase the annotation that's already there and replace it with the new annotation, which for all intents and purposes should be the same depening on the VEP `cache` version you are using. -->
+
+```{zsh subset vcfs, engine.opts='-i'}
+for iMASTER_VCF in "$DIR_TMP"/*.vcf.gz ; do
+	# get file basename
+	iBASENAME=$(basename "$iMASTER_VCF")
+
+	# subset a new VCF with only SNVs
+	bcftools view \
+	--include 'TYPE="snp"' \
+	"$iMASTER_VCF" > "$DIR_TMP"/"${iBASENAME%%.*}.snp.Somatic.vep.vcf"
+
+	# ...and a new VCF with only INDELs
+	bcftools view \
+	--include 'TYPE="indel"' \
+	"$iMASTER_VCF" > "$DIR_TMP"/"${iBASENAME%%.*}.indel.Somatic.vep.vcf"
+
+	# ...and a new VCF with only simple INDELs
+	bcftools view \
+    --include 'TYPE="indel" & (STRLEN(REF)=2 | STRLEN(ALT)=2)' \
+	"$iMASTER_VCF" > "$DIR_TMP"/"${iBASENAME%%.*}.indel1.Somatic.vep.vcf"
+
+	# ...and a new VCF with only complex INDELs
+	bcftools view \
+    --include 'TYPE="indel" & (STRLEN(REF)>2 | STRLEN(ALT)>2)' \
+	"$iMASTER_VCF" > "$DIR_TMP"/"${iBASENAME%%.*}.indel2p.Somatic.vep.vcf"
+done
+
+for i in "$DIR_TMP"/*.vcf ; do
+    bgzip -c "$i" > "${i}.gz"
+    tabix "${i}.gz"
+done
+```
+
+<!-- First, convert each VCF into a ***human-readable*** TSV containing all variants (SNV + INDEL): -->
+
+<!-- ```{zsh all variants tsv, engine.opts='-i'} -->
+<!-- for i in "$DIR_TMP"/*.vcf.gz ; do -->
+<!--     I_BASENAME=$(basename "$i") -->
+<!--     SAMPLE_TSV="${DIR_RESULTS_TABLES_VARIANTS}/${I_BASENAME}.all.tsv" -->
+
+<!--     bcftools query \ -->
+<!--     --print-header \ -->
+<!--     -f '%CHROM\t%POS\t%REF\t%ALT[\t%INFO/GPV\t%INFO/SPV\t%GT\t%GQ\t%DP\t%RD\t%AD\t%FREQ\t%DP4]\t%INFO/CSQ\n' \ -->
+<!--     "$i" > "$SAMPLE_TSV" -->
+<!-- done -->
+
+<!--     # --include 'TYPE="snp"' \ -->
+<!--     # --include 'TYPE="indel"' \ -->
+<!-- ``` -->
+
+<!-- For each VCF, filter only SNVs and return chrom, ref, alt, and AF in a table: -->
+
+<!-- ```{zsh filter snv, engine.opts='-i'} -->
+<!-- # TODO: if 0 variants ended up in the output, delete that file so it doesnt make it into the list of TSVs. Make sure this doesn't impact downstream analysis e.g. if it explicitly tries to find a table that isn't there (that didn't make it into the list) -->
+<!-- for i in "$DIR_TMP"/*.vcf.gz -->
+<!-- do -->
+<!--     I_BASENAME=$(basename "$i" '.gz') -->
+<!--     bcftools query \ -->
+<!--     --print-header \ -->
+<!--     --include 'TYPE="snp"' \ -->
+<!--     -f '%CHROM\t%POS\t%REF\t%ALT[\t%INFO/GPV\t%INFO/SPV\t%GT\t%GQ\t%DP\t%RD\t%AD\t%FREQ\t%DP4]\t%INFO/Func.refGene\t%INFO/Gene.refGene\t%INFO/GeneDetail.refGene\t%INFO/ExonicFunc.refGene\t%INFO/AAChange.refGene\n' \ -->
+<!--     "$i" > "${DIR_RESULTS_TABLES_VARIANTS}/${I_BASENAME}.snv.tsv" -->
+<!-- done -->
+<!-- ``` -->
+
+<!-- For each VCF, filter only INDELs and return chrom, ref, alt, and AF in a table: -->
+
+<!-- ```{zsh filter indel, engine.opts='-i'} -->
+<!-- for i in "$DIR_TMP"/*.vcf.gz -->
+<!-- do -->
+<!--     I_BASENAME=$(basename "$i" '.gz') -->
+<!--     bcftools query \ -->
+<!--     --print-header \ -->
+<!--     --include 'TYPE="indel"' \ -->
+<!--     -f '%CHROM\t%POS\t%REF\t%ALT[\t%INFO/GPV\t%INFO/SPV\t%GT\t%GQ\t%DP\t%RD\t%AD\t%FREQ\t%DP4]\t%INFO/Func.refGene\t%INFO/Gene.refGene\t%INFO/GeneDetail.refGene\t%INFO/ExonicFunc.refGene\t%INFO/AAChange.refGene\n' \ -->
+<!--     "$i" > "${DIR_RESULTS_TABLES_VARIANTS}/${I_BASENAME}.indel.tsv" -->
+<!-- done -->
+<!-- ``` -->
+
+<!-- Filter for INDELs of length 1 and return a basic data table: -->
+
+<!-- ```{zsh filter indel-1, engine.opts='-i'} -->
+<!-- for i in "$DIR_TMP"/*.vcf.gz -->
+<!-- do -->
+<!--     I_BASENAME=$(basename "$i" '.gz') -->
+<!--     bcftools query \ -->
+<!--     --print-header \ -->
+<!--     --include 'TYPE="indel" & (STRLEN(REF)=2 | STRLEN(ALT)=2)' \ -->
+<!--     -f '%CHROM\t%POS\t%REF\t%ALT[\t%INFO/GPV\t%INFO/SPV\t%GT\t%GQ\t%DP\t%RD\t%AD\t%FREQ\t%DP4]\t%INFO/Func.refGene\t%INFO/Gene.refGene\t%INFO/GeneDetail.refGene\t%INFO/ExonicFunc.refGene\t%INFO/AAChange.refGene\n' \ -->
+<!--     "$i" > "${DIR_RESULTS_TABLES_VARIANTS}/${I_BASENAME}.indel1.tsv" -->
+<!-- done -->
+<!-- ``` -->
+
+<!-- Filter for INDELs of length >1 and return a basic data table: -->
+
+<!-- ```{zsh filter indel-2p, engine.opts='-i'} -->
+<!-- for i in "$DIR_TMP"/*.vcf.gz -->
+<!-- do -->
+<!--     I_BASENAME=$(basename "$i" '.gz') -->
+<!--     bcftools query \ -->
+<!--     --print-header \ -->
+<!--     --include 'TYPE="indel" & (STRLEN(REF)>2 | STRLEN(ALT)>2)' \ -->
+<!--     -f '%CHROM\t%POS\t%REF\t%ALT[\t%INFO/GPV\t%INFO/SPV\t%GT\t%GQ\t%DP\t%RD\t%AD\t%FREQ\t%DP4]\t%INFO/Func.refGene\t%INFO/Gene.refGene\t%INFO/GeneDetail.refGene\t%INFO/ExonicFunc.refGene\t%INFO/AAChange.refGene\n' \ -->
+<!--     "$i" > "${DIR_RESULTS_TABLES_VARIANTS}/${I_BASENAME}.indel2p.tsv" -->
+<!-- done -->
+<!-- ``` -->
+
+## Make human-readable tables from VCFs
+
+Use VEP to make an annotated table for the variants and export to TSV:
+
+```{zsh, engine.opts='-i'}
+# Adapted from '01--annotate-variants-vep.sh' script
+# Annotate and output a human-readable TSV with single annotation per variant based on rank order criteria found at http://useast.ensembl.org/info/docs/tools/vep/script/vep_other.html#summary_eg. Primary criteria is canonical transcript status.
+for iVCF in "$DIR_TMP"/*.vcf ; do
+
+done
+```
+
+## Load variant tables and add flanking bases
+
+For every [variantType].tsv, make a vector of the filepaths
+
+```{r make list of tsv filepaths}
+# make a list of all [variantType].tsv files
+listOfVarTsvFiles =
+    list.files(path = dir_results_tables_variants,
+               pattern = "vcf.(all|snv|indel|indel1|indel2p).tsv")
+```
+
+For every variant TSV:
+
+- add each table as an element in a list
+- add flanking bases each table
+- write out each table to the same TSV
+
+```{r add tsv file tables to a list, message=F}
+# initialize empty list to hold the TSV objects
+list_var_tsv_tables = list()
+
+# load each variant TSV as tables into a list & add columns for flanking bases
+for (i in 1:length(listOfVarTsvFiles)) {
+
+    # get full filepath of the tsv file
+    tmpVarTsvFilepath = paste0(dir_results_tables_variants, "/", listOfVarTsvFiles[i])
+
+    # load the tsv table into the list as an element
+    list_var_tsv_tables[[basename(tmpVarTsvFilepath)]] = read_tsv(tmpVarTsvFilepath)
+
+    # only add flanking base columns to tables that have variants (i.e. skip tables that have 0 variants)
+    if (nrow(list_var_tsv_tables[[i]]) > 0) {
+        # add columns for -20 and +20 flanking nucleotides
+        list_var_tsv_tables[[i]] = list_var_tsv_tables[[i]] %>%
+            mutate(TRINUC_CONTEXT = getSeq(x = ref_genome,
+                                        names = .$`# [1]CHROM`,
+                                        start = (.$`[2]POS` - 1),
+                                        end = .$`[2]POS` + 1,
+                                        as.character = T)) %>%
+            mutate(TRINUC_FORMAT = paste0(`[3]REF`, ">", `[4]ALT`,
+                                          ":", TRINUC_CONTEXT)) %>%
+            mutate(`-20 flank` = getSeq(x = ref_genome,
+                                        names = .$`# [1]CHROM`,
+                                        start = (.$`[2]POS` - 20),
+                                        end = .$`[2]POS`,
+                                        as.character = T)) %>%
+            mutate(`+20 flank` = getSeq(x = ref_genome,
+                                        names = .$`# [1]CHROM`,
+                                        start = .$`[2]POS`,
+                                        end = (.$`[2]POS` + 20),
+                                        as.character = T)) %>%
+        # reorder columns so flanking bases are after REF/ALT
+        select(`# [1]CHROM`, `[2]POS`, `[3]REF`, `[4]ALT`, TRINUC_CONTEXT, TRINUC_FORMAT, `-20 flank`, `+20 flank`, everything())
+
+        # save the table back to the tsv file form whence it came
+        write_tsv(list_var_tsv_tables[[i]], path = tmpVarTsvFilepath)
+    }
+}
+```
+
+## Tumor Mutation Burden
+
+### Make total TMB tables
+
+#### TMB - All variants
+
+Loop through the all (SNV+INDEL) results and make a table of how many for each sample:
+
+```{zsh make all var tmb table, engine.opts='-i'}
+# make results table
+ALL_TABLE="${DIR_RESULTS_TABLES_TMB}/tmb-counts-all-vars.tsv"
+touch "$ALL_TABLE"
+# add table header
+printf "sample_name\tTMB_ALL_VARS\n" > "$ALL_TABLE"
+
+# add results to table
+for i in "$DIR_RESULTS_TABLES_VARIANTS"/**/*.vcf.all.tsv
+do
+    BASENAME=$(basename "$i" '.vcf.all.tsv')
+    TMB=$(wc -l < "$i")
+    printf "${BASENAME}\t${TMB}\n" >> "$ALL_TABLE"
+done
+```
+
+
+#### TMB - SNVs
+
+Loop through the SNV results and make a table of how many for each sample:
+
+```{zsh make snv tmb table, engine.opts='-i'}
+# make results table
+SNV_TABLE="${DIR_RESULTS_TABLES_TMB}/tmb-counts-snv-all.tsv"
+touch "$SNV_TABLE"
+# add table header
+printf "sample_name\tTMB_SNV\n" > "$SNV_TABLE"
+
+# add results to table
+for i in "$DIR_RESULTS_TABLES_VARIANTS"/**/*.vcf.snv.tsv
+do
+    BASENAME=$(basename "$i" '.vcf.snv.tsv')
+    TMB=$(wc -l < "$i")
+    printf "${BASENAME}\t${TMB}\n" >> "$SNV_TABLE"
+done
+```
+
+#### TMB - all INDELs
+
+Loop through the INDEL-all results and make a table of how many for each sample:
+
+```{zsh make all indel tmb table, engine.opts='-i'}
+# make results table
+INDEL_TABLE="${DIR_RESULTS_TABLES_TMB}/tmb-counts-indel-all.tsv"
+touch "$INDEL_TABLE"
+# add table header
+printf "sample_name\tTMB_INDEL_all\n" > "$INDEL_TABLE"
+
+# add results to table
+for i in "$DIR_RESULTS_TABLES_VARIANTS"/**/*.vcf.indel.tsv
+do
+    BASENAME=$(basename "$i" '.vcf.indel.tsv')
+    TMB=$(wc -l < "$i")
+    printf "${BASENAME}\t${TMB}\n" >> "$INDEL_TABLE"
+done
+```
+
+
+#### TMB - Simple INDELs (1 base)
+
+Loop through INDEL-1 and make summary table of tmb-counts per sample:
+
+```{zsh make indel-1 tmb table, engine.opts='-i'}
+# make results table
+INDEL_TABLE="${DIR_RESULTS_TABLES_TMB}/tmb-counts-indel-1.tsv"
+touch "$INDEL_TABLE"
+# add table header
+printf "sample_name\tTMB_INDEL_1\n" > "$INDEL_TABLE"
+
+# add results to table
+for i in "$DIR_RESULTS_TABLES_VARIANTS"/**/*.vcf.indel1.tsv
+do
+    BASENAME=$(basename "$i" '.vcf.indel1.tsv')
+    TMB=$(wc -l < "$i")
+    printf "${BASENAME}\t${TMB}\n" >> "$INDEL_TABLE"
+done
+```
+
+#### TMB - Complex INDELs (>1 base)
+
+Loop through INDEL-2p and make summary table of counts per sample:
+
+```{zsh make indel-2p tmb table, engine.opts='-i'}
+# make results table
+INDEL_TABLE="${DIR_RESULTS_TABLES_TMB}/tmb-counts-indel-2p.tsv"
+touch "$INDEL_TABLE"
+# add table header
+printf "sample_name\tTMB_INDEL_2p\n" > "$INDEL_TABLE"
+
+# add results to table
+for i in "$DIR_RESULTS_TABLES_VARIANTS"/**/*.vcf.indel2p.tsv
+do
+    BASENAME=$(basename "$i" '.vcf.indel2p.tsv')
+    TMB=$(wc -l < "$i")
+    printf "${BASENAME}\t${TMB}\n" >> "$INDEL_TABLE"
+done
+```
+
+### Load TMB tables and add to info table
+
+Copy new info table for additions:
+
+```{r info table add}
+inputInfoTable_add = inputInfoTable
+```
+
+#### TMB - All variants
+
+Load TMB-SNV+INDEL table
+
+```{r load all var tmb table}
+tmb_all = read_tsv(file = paste0(dir_results_tables_tmb, "/tmb-counts-all-vars.tsv"))
+```
+
+Add the all vars TMB data to the original input info table by matching file basenames (i.e. sample names)
+
+```{r add all var tmb to info table}
+inputInfoTable_add = tmb_all %>%
+    mutate(sample_name = str_replace(string = sample_name,
+                                     pattern = '.all.tsv',
+                                     replacement = '')) %>%
+    left_join(x = inputInfoTable_add, y = ., by = c("file_basename" = "sample_name"))
+```
+
+#### TMB - SNVs
+
+Load TMB-SNV table
+
+```{r load tmb snv table}
+tmb_snv = read_tsv(file = paste0(dir_results_tables_tmb, "/tmb-counts-snv-all.tsv"))
+```
+
+Add the SNV TMB data to the original input info table by matching file basenames (i.e. sample names)
+
+```{r add snv tmb to info table}
+inputInfoTable_add = tmb_snv %>%
+    mutate(sample_name = str_replace(string = sample_name,
+                                     pattern = '.snv.tsv',
+                                     replacement = '')) %>%
+    left_join(x = inputInfoTable_add, y = ., by = c("file_basename" = "sample_name"))
+```
+
+#### TMB - all INDELs
+
+Load TMB-INDEL table
+
+```{r load all indel tmb table}
+tmb_indel_all = read_tsv(file = paste0(dir_results_tables_tmb, "/tmb-counts-indel-all.tsv"))
+```
+
+Add the all INDEL data to the original input info table by matching file basenames (i.e. sample names)
+
+```{r add all indel tmb to info table}
+inputInfoTable_add = tmb_indel_all %>%
+    mutate(sample_name = str_replace(string = sample_name,
+                                     pattern = '.indel.tsv',
+                                     replacement = '')) %>%
+    left_join(x = inputInfoTable_add, y = ., by = c("file_basename" = "sample_name"))
+```
+
+#### TMB - Simple INDELs (1 base)
+
+Load TMB-INDEL-1 table
+
+```{r load indel-1 tmb table}
+tmb_indel_1 = read_tsv(file = paste0(dir_results_tables_tmb, "/tmb-counts-indel-1.tsv"))
+```
+
+Add the INDEL-1 data to the original input info table by matching file basenames (i.e. sample names)
+
+```{r add indel1 tmb to info table}
+inputInfoTable_add = tmb_indel_1 %>%
+    mutate(sample_name = str_replace(string = sample_name,
+                                     pattern = '.indel1.tsv',
+                                     replacement = '')) %>%
+    left_join(x = inputInfoTable_add, y = ., by = c("file_basename" = "sample_name"))
+```
+
+#### TMB - Complex INDELs (>1 base)
+
+Load TMB-INDEL-2p table
+
+```{r load indel-2p tmb table}
+tmb_indel_2p = read_tsv(file = paste0(dir_results_tables_tmb, "/tmb-counts-indel-2p.tsv"))
+```
+
+Add the INDEL-2p data to the original input info table by matching file basenames (i.e. sample names)
+
+```{r add indel2p tmb to info table}
+inputInfoTable_add = tmb_indel_2p %>%
+    mutate(sample_name = str_replace(string = sample_name,
+                                     pattern = '.indel2p.tsv',
+                                     replacement = '')) %>%
+    left_join(x = inputInfoTable_add, y = ., by = c("file_basename" = "sample_name"))
+```
+
+### Plot TMB counts
+
+#### Define plotTMB function
+
+Define function to plot TMB levels:
+
+```{r plot tmb function}
+plotTMB <- function(data = inputInfoTable_add,
+                    xfac = "sample_name",
+                    yfac = "TMB_ALL_VARS",
+                    title = "Tumor Mutation Burden",
+                    xlab = "",
+                    ylab = "TMB") {
+
+    # Check for arguments
+    # if (missing(data))
+
+    # plot with facets if specified
+    if (params$TMB_PLOT_FACET == T) {
+        # plot with 1 facet (y)
+        if (params$TMB_PLOT_FACET_NUM == 1) {
+            print(data %>%
+                ggplot(aes(x = reorder(.[[xfac]], .[[yfac]]),
+                           y = .[[yfac]],
+                           fill = get(params$TMB_PLOT_FILL_FACTOR))) +
+                    geom_col(color = "black", show.legend = F) +
+                    scale_y_continuous(labels = scales::label_number_si()) +
+                    facet_grid(get(params$TMB_PLOT_FACET_FACTORS[1]) ~ .,
+                               # space = "free",
+                               scales = "free") +
+                    coord_flip() +
+                    labs(title = title,
+                     x = xlab, y = ylab))
+        } else if (params$TMB_PLOT_FACET_NUM == 1) {
+            # plot with 2 facets (x and y)
+            print(data %>%
+                ggplot(aes(x = reorder(.[[xfac]], .[[yfac]]),
+                           y = .[[yfac]],
+                           fill = get(params$TMB_PLOT_FILL_FACTOR))) +
+                    geom_col(color = "black", show.legend = F) +
+                    scale_y_continuous(labels = scales::label_number_si()) +
+                    facet_grid(get(params$TMB_PLOT_FACET_FACTORS[1]) ~
+                               get(params$TMB_PLOT_FACET_FACTORS[2]),
+                               # space = "free",
+                               scales = "free") +
+                    coord_flip() +
+                    labs(title = title,
+                     x = xlab, y = ylab))
+        }
+    } else {
+        # plot without facets
+        print(data %>%
+            ggplot(aes(x = reorder(.[[xfac]], .[[yfac]]),
+                       y = .[[yfac]])) +
+                geom_col(color = "black", show.legend = F) +
+                scale_y_continuous(labels = scales::label_number_si()) +
+                coord_flip() +
+                labs(title = title,
+                 x = xlab, y = ylab))
+    }
+}
+```
+
+#### All variants (SNV + INDEL)
+
+Plot the all variants TMBs per sample:
+
+```{r plot tmb all}
+# plot TMB for all variants
+plotTMB(yfac = "TMB_ALL_VARS",
+        title = "Tumor Mutation Burden: SNV + INDEL",
+        xlab = "",
+        ylab = "TMB")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/01--tmb-all.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 3 + (0.05 * nrow(inputInfoTable_add)))
+       # width = 6 + (0.05 * longest_name_factor),
+       # height = 4 + (0.05 * n_sample_names))
+```
+
+##### SNVs vs. INDELs
+
+Gather the columns for each variant class/type that were added to the info table into a long-form table:
+
+```{r gather variants by class and type}
+inputInfoTable_edit = inputInfoTable_add %>%
+    gather(TMB_SNV, TMB_INDEL_all, TMB_INDEL_1, TMB_INDEL_2p, key = "TMB_variant_type", value = "TMB") %>%
+    mutate(mut_class = case_when(str_detect(TMB_variant_type, "SNV") ~ "SNV",
+                                str_detect(TMB_variant_type, "INDEL") ~ "INDEL"))
+```
+
+Plot all of the variants for each sample
+
+```{r plot all indel and snv}
+# plot TMB of all SNVs and INDELs
+inputInfoTable_edit %>%
+    filter(TMB_variant_type != "TMB_INDEL_all") %>%
+    ggplot(aes(x = mut_class, y = TMB,
+               fill = TMB_variant_type)) +
+    geom_col(color = "black") +
+        facet_grid(~ sample_name) +
+        scale_y_continuous(labels = scales::label_number_si()) +
+        labs(x = "Mutation Type",
+             y = "TMB",
+             title = "TMB vs. Mutation Class and Type")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/06--tmb-mut-type-facet.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 4)
+```
+
+
+#### SNV
+
+Plot the SNV TMBs per sample:
+
+```{r plot tmb snv}
+plotTMB(yfac = "TMB_SNV",
+        title = "Tumor Mutation Burden: SNV",
+        xlab = "",
+        ylab = "TMB")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/02--tmb-snv.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 3 + (0.05 * nrow(inputInfoTable_add)))
+       # width = 6 + (0.05 * longest_name_factor),
+       # height = 4 + (0.05 * n_sample_names))
+```
+
+#### All INDEL
+
+Plot the all INDEL TMBs per sample:
+
+```{r plot tmb indel all}
+# plot TMB for all variants
+plotTMB(yfac = "TMB_INDEL_all",
+        title = "Tumor Mutation Burden: INDEL",
+        xlab = "",
+        ylab = "TMB")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/03--tmb-indel.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 3 + (0.05 * nrow(inputInfoTable_add)))
+       # width = 6 + (0.05 * longest_name_factor),
+       # height = 4 + (0.05 * n_sample_names))
+```
+
+#### 1 INDELs
+
+Plot the INDEL-1 TMBs per sample:
+
+```{r plot tmb indel-1}
+plotTMB(yfac = "TMB_INDEL_1",
+        title = "Tumor Mutation Burden: Simple INDELs (1 nt)",
+        xlab = "",
+        ylab = "TMB")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/03--tmb-indel-1.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 3 + (0.05 * nrow(inputInfoTable_add)))
+       # width = 6 + (0.05 * longest_name_factor),
+       # height = 4 + (0.05 * n_sample_names))
+```
+
+#### >1 INDELs
+
+Plot the INDEL-2p TMBs per sample:
+
+```{r plot tmb indel-2p}
+plotTMB(yfac = "TMB_INDEL_2p",
+        title = "Tumor Mutation Burden: Complex INDELs (>1 nt)",
+        xlab = "",
+        ylab = "TMB")
+
+# save plot
+ggsave(filename = paste0(dir_results_plots, "/03--tmb-indel-2p.pdf"),
+       device = "pdf",
+       width = 6,
+       height = 3 + (0.05 * nrow(inputInfoTable_add)))
+       # width = 6 + (0.05 * longest_name_factor),
+       # height = 4 + (0.05 * n_sample_names))
+```
+
+## Variant allele frequency (VAF) distributions
+
+***TEST***: for 1st table in `list_var_tsv_tables`, make:
+
+1. a density plot of tumor VAF freq
+2. same but for normal VAF freq?
+3. overlay read depth density plot
+
+```{r extract and format VAF and DP}
+# define function to extract and format VAF and DP
+extFmtVafDp <- function(list_item_tib) {
+    # extract and format only if tables have variants
+    if (nrow(list_item_tib) > 0) {
+        list_item_tib %>%
+            select(`[9]NORMAL:DP`, `[12]NORMAL:FREQ`,
+                   `[18]TUMOR:DP`, `[21]TUMOR:FREQ`) %>%
+            rename(normal_VAF = `[12]NORMAL:FREQ`,
+                   normal_DP = `[9]NORMAL:DP`,
+                   tumor_VAF = `[21]TUMOR:FREQ`,
+                   tumor_DP = `[18]TUMOR:DP`) %>%
+            mutate(normal_VAF = parse_number(normal_VAF)) %>%
+            mutate(tumor_VAF = parse_number(tumor_VAF))
+    }
+}
+
+# Save extracted VAF and DP list to a new list
+list_vaf_dp_tables <- map2(list_var_tsv_tables, extFmtVafDp)
+```
+
+```{r plot VAF distributions}
+# Define function to plot VAF histogram
+plotVafHist <- function(vafAndDpTable, table_name) {
+    vafAndDpTable %>%
+        ggplot(aes(x = tumor_DP, y = tumor_VAF)) +
+        geom_point(alpha = 0.3) +
+        labs(title = "Tumor VAF vs. Read Depth",
+             x = "Read Depth",
+             y = "VAF (%)")
+
+ggsave(filename = paste0(dir_results_plots, "/",
+             names(),
+             "-tumor-VAF-vs-DP.pdf"))
+}
+```
+
+```{r OLD VAF DP distributions}
+# TODO: only conditionally plot plots if they have data, i.e. dont plot plots that have no data
+# for (i in 1:length(list_var_tsv_tables)) {
+#     if (nrow(list_var_tsv_tables[[i]]) > 0) {
+#         # Select and rename data if there are any variants (rows) ----
+#         freqAndDpTable <- list_var_tsv_tables[[i]] %>%
+#             select(`[9]NORMAL:DP`, `[12]NORMAL:FREQ`,
+#             `[18]TUMOR:DP`, `[21]TUMOR:FREQ`) %>%
+#             rename(normal_VAF = `[12]NORMAL:FREQ`,
+#                    normal_DP = `[9]NORMAL:DP`,
+#                    tumor_VAF = `[21]TUMOR:FREQ`,
+#                    tumor_DP = `[18]TUMOR:DP`) %>%
+#             mutate(normal_VAF = parse_number(normal_VAF)) %>%
+#             mutate(tumor_VAF = parse_number(tumor_VAF))
+#
+#         # Plot tumor VAF vs. DP ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = tumor_DP, y = tumor_VAF)) +
+#                 geom_point(alpha = 0.3) +
+#                 labs(title = "Tumor VAF vs. Read Depth",
+#                      x = "Read Depth",
+#                      y = "VAF (%)")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-tumor-VAF-vs-DP.pdf"))
+#
+#         # plot tumor VAF vs. DP (log) ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = tumor_DP, y = tumor_VAF)) +
+#                 # geom_hex(alpha = 0.5) +
+#                 geom_point(alpha = 0.3) +
+#                 scale_x_log10() +
+#                 scale_y_log10() +
+#                 labs(title = "Tumor VAF vs. Read Depth (log10 Scale)",
+#                      x = "Read Depth",
+#                      y = "VAF (%)")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-tumor-VAF-vs-DP-log.pdf"))
+#
+#
+#         # Plot normal VAF vs. DP ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = normal_DP, y = normal_VAF)) +
+#                 geom_point(alpha = 0.3) +
+#                 labs(title = "Normal VAF vs. Read Depth",
+#                      x = "Read Depth",
+#                      y = "VAF (%)")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-normal-VAF-vs-DP.pdf"))
+#
+#         # plot normal VAF vs. DP (log) ----
+#         print(
+#         freqAndDpTable %>%
+#             ggplot(aes(x = normal_DP, y = normal_VAF)) +
+#             geom_point(alpha = 0.3) +
+#             scale_x_log10() +
+#             scale_y_log10() +
+#             labs(title = "Normal VAF vs. Read Depth (log10 Scale)",
+#                  x = "Read Depth",
+#                  y = "Variant Allele Frequency (%)")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-normal-VAF-vs-DP-log.pdf"))
+#
+#         # plot tumor VAF histogram ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = tumor_VAF)) +
+#                 geom_histogram(color = "black", fill = "red", alpha = 0.5,
+#                                boundary = 0) +
+#                 geom_rug(alpha = 0.3) +
+#                 labs(title = "Distribution of Tumor Variant Allele Frequencies",
+#                      x = "Tumor VAF (%)",
+#                      y = "Counts")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-tumor-VAF-histo.pdf"))
+#
+#         # plot tumor VAF histogram <= 10% ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = tumor_VAF)) +
+#                 geom_histogram(color = "black", fill = "red", alpha = 0.5,
+#                                boundary = 0) +
+#                 geom_vline(xintercept = 10, linetype = "dashed") +
+#                 geom_rug(alpha = 0.3) +
+#                 xlim(c(0, 10)) +
+#                 labs(title = "Distribution of Tumor Variant Allele Frequencies <= 10%",
+#                      x = "Tumor VAF (%)",
+#                      y = "Counts")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-tumor-VAF-histo-10pct.pdf"))
+#
+#         # plot tumor VAF histogram <= 2.5% ----
+#         print(
+#             freqAndDpTable %>%
+#                 ggplot(aes(x = tumor_VAF)) +
+#                 geom_histogram(color = "black", fill = "red", alpha = 0.5,
+#                                boundary = 0) +
+#                 geom_vline(xintercept = 2.5, linetype = "dashed") +
+#                 geom_rug(alpha = 0.3) +
+#                 xlim(c(0, 2.5)) +
+#                 labs(title = "Distribution of Tumor Variant Allele Frequencies <= 2.5%",
+#                      x = "Tumor VAF (%)",
+#                      y = "Counts")
+#         )
+#         ggsave(filename = paste0(dir_results_plots, "/",
+#                                  names(list_var_tsv_tables[i]),
+#                                  "-tumor-VAF-histo-2_5pct.pdf"))
+#
+#     }
+# }
+```
+
+## Somatic p-value distribution
+
+
+
+# Conclusion
+
+Write Rdata to results dir
+
+```{r save session data}
+# save data image
+save.image(file = paste0(dir_results, "/data.Rdata"))
+
+# save session info
+write_lines(capture.output(sessionInfo()), path = paste0(dir_results, "/sessionInfo.txt"))
+```
+

@@ -1,0 +1,156 @@
+---
+title: 'GDC Data Retrieval from TCGA Case IDs'
+author: 'Leo Williams'
+date: |
+  | 'Created 2020-01-10'
+  | 'Updated `r format(Sys.time(), "%Y-%m-%d")`'
+params:
+  # default
+  input_info_table: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/expt_00--obtain-and-format-data/Vivian-TCGA-hypermut-POLE-pol-muts/00--input/TCGA-POLE-hypermut-pol-domain-mut-case-IDs.tsv'
+  output_dir: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/expt_00--obtain-and-format-data/Vivian-TCGA-hypermut-POLE-pol-muts'
+  gdc_token_file: '/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/expt_00--obtain-and-format-data/Vivian-TCGA-hypermut-POLE-pol-muts/00--input/gdc-user-token.2020-01-10T20_22_55.971Z.txt'
+  optional_output_id: NULL
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+  pdf_document:
+    toc: yes
+    number_sections: yes
+---
+
+# About
+
+This script takes a list of TCGA case IDs as input and downloads the annotated Varscan2 VCF files
+
+## I/O
+
+Inputs:
+
+- input table of newlin-separated TCGA case IDs
+
+Outputs:
+
+- 
+ 
+# Usage
+
+# Setup
+
+Load packages, set project root/working dir, make results dir, set global chunk options, and set knitr figure output path:
+
+```{r setup, results='hide'}
+# load packages
+library(knitr)
+library(tidyverse)
+library(GenomicDataCommons)
+
+# set global knit options
+opts_knit$set(
+	# Set working dir as project root dir
+	root.dir = rprojroot::find_rstudio_root_file()
+)
+
+# Set working dir for setup chunk
+setwd(rprojroot::find_rstudio_root_file())
+getwd()
+
+# Make results dir
+if (!is.null(params[["optional_output_id"]])) {
+    optional_output_id = params$optional_output_id
+results_dir = paste0(params$output_dir, 
+                     "/results", 
+                     "--", 
+                     optional_output_id, 
+                     as.character(format(Sys.time(), 
+                                         '--%Y-%m-%d-%H%M%S')), 
+                     "/") # TODO: go through and properly format dir and file names. i.e. remove all trailing '/' from dir names and add '/' to beginning of file name when defining. this is to conform to standard format of copying dirnames from the terminal because they dont end with a '/'.
+dir.create(results_dir)
+} else {
+results_dir = paste0(params$output_dir, 
+                     "/results", 
+                     as.character(format(Sys.time(),
+                                         '--%Y-%m-%d-%H%M%S')), 
+                     "/")
+dir.create(results_dir)
+}
+
+# set path for knitr figure output
+opts_chunk$set(dev = "pdf", fig.path = paste0(results_dir, "figures-Rmd/"))
+
+# Set global chunk options
+opts_chunk$set(
+	tidy.opts = list(width.cutoff = 60), 
+	tidy = TRUE, 
+	fig.path = paste0(results_dir, "figures-Rmd/")
+)
+```
+
+Load TCGA case IDs:
+
+```{r load case IDs}
+# Load TCGA case IDs from input table ----
+input_info_table = read_tsv(file = params$input_info_table)
+                            #, col_types = cols(.default = "c"))
+# View(input_info_table)
+glimpse(input_info_table)
+```
+
+Load and set GDC controlled access token:
+
+```{r load GDC token}
+# set GDC token as env variable so it can be read by `gdc_token()`
+Sys.setenv(GDC_TOKEN_FILE = params$gdc_token_file)
+# set token as local variable
+gdc_token <- gdc_token()
+```
+
+Check GDC network:
+
+```{r}
+status()
+stopifnot(status()$status == "OK")
+```
+
+# Analysis
+
+## Create query
+
+1. Create a files query:
+
+```{r make files query}
+fquery <- files()
+# inspect GDfquery object and its default fields
+fquery
+```
+
+2. Select fields of interest to query:
+
+```{r select fields}
+# list available fileds for a 'cases' query
+length(available_fields("cases"))
+# available_fields("cases")
+
+# select fields of interest:
+fquery %>% 
+    select()
+```
+
+3. Filter field values to limit results:
+
+```{r filter query results}
+# without filters, returns all default results:
+count(fquery)
+
+# 
+```
+
+4. Retrieve results:
+
+```{r retrieve query results}
+# NOTE: Don't run `results_all()` unless you have filtered otherwise it could be huge and take a long time!
+cresults <- fquery %>% results_all()
+cresults
+```
+

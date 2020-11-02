@@ -1,0 +1,55 @@
+```{r setup}
+library(tidyverse)
+```
+
+```{r data}
+
+```
+
+```{r coverage calc}
+read_length = 100
+n_reads = 2*76734799 # 76M 
+target_size = 60e6 # 60Mb from Agilent website
+
+coverage = (read_length * n_reads) / target_size
+
+print(paste0("Average coverage is: ", round(coverage), "x"))
+```
+
+# from samtools depth
+
+```{r samtools data}
+sam_dp = read_tsv(file = "/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis/04--analysis/02--read-mapping-and-postprocessing/04--HCT116-Selina-revisions/rsync/S459F-6K/results/coverage-calcs/samtools-depth.txt", 
+                  col_names = c("CHR", "POS", "DP"))
+head(sam_dp)
+```
+
+```{r calc mean cov}
+dp_summary = summary(sam_dp$DP)
+dp_summary
+str(dp_summary)
+```
+
+```{r plot dp summary}
+dp_sum_tib = as.matrix(dp_summary) %>% as_tibble(rownames = "Summary Stat")
+dp_sum_tib_nonzero = dp_sum_tib %>%
+    mutate(V1 = V1 + 1) %>%
+    rename(Depth = V1)
+
+ggplot(dp_sum_tib_nonzero, aes(x = `Summary Stat`, y = Depth)) + 
+    geom_col(fill = "gray", color = "black") + 
+    scale_y_log10() + 
+    theme_light()
+
+ggplot(dp_sum_tib_nonzero, aes(x = `Summary Stat`, y = Depth)) + 
+    geom_col(fill = "gray", color = "black") + 
+    # scale_y_log10() + 
+    theme_light()
+```
+
+
+```{r}
+sam_dp %>%
+    filter(DP > 2000)
+```
+

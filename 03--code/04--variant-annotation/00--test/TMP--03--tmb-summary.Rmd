@@ -1,0 +1,34 @@
+---
+title: "TMB summary"
+output: html_notebook
+---
+
+```{zsh, engine.opts='-i'}
+cat '' > tmb-summary.txt
+
+for i in **/*.vcf
+do
+    printf $(basename "$i") >> tmb-summary.txt
+    grep '^[^#]' "$i" | wc >> tmb-summary.txt
+done
+
+gsed -i 's/\s\+/\t/g' tmb-summary.txt
+```
+
+```{r}
+# read in TMB summary made 
+tmbs = read_tsv(file = "/Volumes/Pursell-Lab-HD/Pursell-lab/projects/project_02--DNA-seq-analysis-POLE-mutant-tumors/04--analysis/group--Hollern-2013-Cell/expt_06--mutation-signature-analysis/input-vcfs/TN-SNV-VarScan2/tmb-summary.tsv", col_names = c("sample", "TMB"))
+View(tmbs)
+
+tmbs[["sample"]] = c("T11_APOBEC-balbc", "T11_APOBEC-T11", "T11_UV-balbc", "T11_UV-T11", "T11_parent-balbc")
+
+ggplot(data = tmbs, aes(x = tmbs$sample, y = tmbs$TMB)) + 
+    geom_col() + 
+    theme_light() +
+    labs(title = "Tumor Mutation Burden - Hollern, et al. 2013 Cell", 
+         x = "", 
+         y = "TMB") + 
+    theme(axis.text.x = element_text(angle = 90)) 
+
+```
+
