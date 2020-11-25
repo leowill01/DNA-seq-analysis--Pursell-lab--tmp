@@ -1,2 +1,0 @@
-Code: SigProfilerSingleSample
-Version: 1.1
