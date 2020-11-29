@@ -4,4 +4,4 @@ This repo is a temporary public repo for analyzing DNA-seq data in the Pursell L
 
 This repo is noted as temporary because its origin repo needs to be split into separate, project-based repos with these analysis scripts as either a subtree or submodule.
 
-[*This is a small change to test fetching and merging of submodules*]
+
